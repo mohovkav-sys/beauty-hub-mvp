@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Auth from './components/Auth';
-
+import MasterServices from './components/MasterServices';
 /**
  * Главный компонент приложения «Beauty Hub».
  * Управляет состоянием текущего пользователя и переключает между экраном входа,
@@ -63,29 +63,20 @@ export default function App() {
         {!currentUser ? (
           <Auth onAuthSuccess={handleAuthSuccess} />
         ) : currentUser.role === 'master' ? (
-          /* ВЕТКА 2: Авторизован мастер — показываем заготовку кабинета мастера */
-          <section className="bg-white p-8 rounded-2xl shadow-md border border-beauty-light">
-            <h2 className="text-2xl font-bold text-beauty-dark mb-2">
-              Добро пожаловать, {currentUser.full_name}
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Здесь будет управление услугами, рабочим расписанием и записями клиентов.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-              <div className="p-4 rounded-xl bg-beauty-light/60 border border-beauty-light">
-                <h3 className="font-semibold text-beauty-dark mb-1">Мои услуги</h3>
-                <p className="text-sm text-gray-600">Прайс, названия и длительность процедур.</p>
-              </div>
-              <div className="p-4 rounded-xl bg-beauty-light/60 border border-beauty-light">
-                <h3 className="font-semibold text-beauty-dark mb-1">Расписание</h3>
-                <p className="text-sm text-gray-600">Свободные слоты и рабочие дни.</p>
-              </div>
-              <div className="p-4 rounded-xl bg-beauty-light/60 border border-beauty-light">
-                <h3 className="font-semibold text-beauty-dark mb-1">Записи клиентов</h3>
-                <p className="text-sm text-gray-600">Предстоящие визиты и сводка на завтра.</p>
-              </div>
-            </div>
-          </section>
+          
+          <div className="space-y-6">
+                      {/* ВЕТКА 2: Авторизован мастер — приветствие и управление услугами */}
+                      <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-beauty-light text-left">
+                        <h2 className="text-2xl font-bold text-beauty-dark mb-2">
+                          Добро пожаловать, {currentUser.full_name}
+                        </h2>
+                        <p className="text-gray-600">
+                          Управляйте своим набором услуг ниже. Далее подключим расписание и записи клиентов.
+                        </p>
+                      </section>
+          
+                      <MasterServices master={currentUser} />
+                    </div>
         ) : (
           /* ВЕТКА 3: Авторизован клиент — показываем заготовку кабинета клиента */
           <section className="bg-white p-8 rounded-2xl shadow-md border border-beauty-light">

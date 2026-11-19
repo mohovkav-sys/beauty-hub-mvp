@@ -3,38 +3,39 @@ import { supabase } from '../lib/supabase';
 
 /**
  * Компонент авторизации/регистрации для «Beauty Hub».
- * - Клиенты при первом входе автоматически регистрируются в таблице `users`.
- * - Мастера НЕ создаются через форму: войти может только существующий в БД мастер с role = 'master'.
+ * - Клиенты могут войти по существующему номеру или зарегистрироваться автоматически.
+ * - Мастера входят только по номеру, уже существующему в таблице `users` с ролью `master`.
  *
  * @param {Object} props
  * @param {Function} props.onAuthSuccess - Колбэк при успешном входе, получает объект пользователя
  */
 export default function Auth({ onAuthSuccess }) {
-  // Храним ровно 10 цифр номера после статического префикса +7
+  // Ровно 10 цифр номера телефона после фиксированного префикса +7
   const [phoneDigits, setPhoneDigits] = useState('');
-  // Имя пользователя (для клиента при регистрации/входе, для мастера — опционально/для проверки)
+  // Имя клиента (для мастера берется из базы данных)
   const [fullName, setFullName] = useState('');
-  // Выбранная вкладка/роль входа: 'client' или 'master'
+  // Выбранная роль входа: 'client' или 'master'
   const [role, setRole] = useState('client');
-  // Флаг активного сетевого запроса для блокировки кнопки
+  // Состояние загрузки во время запроса к Supabase
   const [loading, setLoading] = useState(false);
-  // Текст ошибки валидации или отказа в доступе
+  // Сообщение об ошибке валидации, доступа или сети
   const [error, setError] = useState(null);
 
   /**
-   * Валидирует поля формы перед обращением к базе данных.
-   * Возвращает объект { valid: boolean, trimmedName: string, fullPhone: string }.
+   * Проверяет корректность введенных данных перед отправкой запроса в БД.
+   *
+   * @returns {{ valid: boolean, trimmedName?: string, fullPhone?: string }}
    */
   const validateForm = () => {
     const trimmedName = fullName.trim();
 
-    // Для клиента имя обязательно (минимум 2 символа)
+    // Имя обязательно при входе/регистрации клиента
     if (role === 'client' && trimmedName.length < 2) {
       setError('Введите ваше имя (минимум 2 символа).');
       return { valid: false };
     }
 
-    // Номер телефона должен содержать строго 10 цифр после +7
+    // Номер телефона должен содержать ровно 10 цифр после +7
     if (phoneDigits.length !== 10) {
       setError('Введите корректный номер телефона — ровно 10 цифр после +7.');
       return { valid: false };
@@ -48,11 +49,10 @@ export default function Auth({ onAuthSuccess }) {
   };
 
   /**
-   * Ищет существующего пользователя в таблице `users` по номеру телефона.
-   * При необходимости фильтрует по роли.
+   * Ищет пользователя в таблице `users` по номеру телефона и (опционально) по роли.
    *
-   * @param {string} fullPhone - Телефон в формате +7XXXXXXXXXX
-   * @param {string|null} requiredRole - Если передана роль (например, 'master'), ищет только с ней
+   * @param {string} fullPhone - Номер телефона в формате +7XXXXXXXXXX
+   * @param {string|null} requiredRole - Обязательная роль ('master' или 'client') либо null
    */
   const findExistingUser = async (fullPhone, requiredRole = null) => {
     let query = supabase
@@ -74,10 +74,10 @@ export default function Auth({ onAuthSuccess }) {
   };
 
   /**
-   * Создает нового пользователя в таблице `users`.
-   * Вызывается ТОЛЬКО для роли 'client', если запись с таким телефоном еще не найдена.
+   * Создает нового клиента в таблице `users`.
+   * Вызывается только для роли 'client', если пользователь еще не зарегистрирован.
    *
-   * @param {Object} userPayload - Данные нового клиента ({ phone, full_name, role })
+   * @param {{ phone: string, full_name: string, role: string }} userPayload
    */
   const createClientUser = async (userPayload) => {
     const { data, error: insertError } = await supabase
@@ -94,9 +94,7 @@ export default function Auth({ onAuthSuccess }) {
   };
 
   /**
-   * Обрабатывает отправку формы входа/регистрации.
-   * Разделяет сценарии для мастера (строго существующая запись в БД)
-   * и клиента (вход существующего или создание нового профиля).
+   * Обрабатывает отправку формы входа или регистрации.
    *
    * @param {React.FormEvent} e - Событие отправки формы
    */
@@ -104,7 +102,7 @@ export default function Auth({ onAuthSuccess }) {
     e.preventDefault();
     setError(null);
 
-    // 1. Проверяем корректность введенных данных
+    // 1. Валидируем поля ввода
     const { valid, trimmedName, fullPhone } = validateForm();
     if (!valid) {
       return;
@@ -113,12 +111,11 @@ export default function Auth({ onAuthSuccess }) {
     setLoading(true);
 
     try {
-      // 2. ВЕТКА МАСТЕРА: регистрация запрещена, проверяем наличие мастера в базе
+      // 2. Вход мастера: регистрация запрещена, проверяем наличие в БД
       if (role === 'master') {
         const existingMaster = await findExistingUser(fullPhone, 'master');
 
         if (!existingMaster) {
-          // Не создаем нового мастера — отказываем во входе
           setError('Доступ запрещен: мастер с таким номером не найден в базе.');
           return;
         }
@@ -127,13 +124,12 @@ export default function Auth({ onAuthSuccess }) {
         return;
       }
 
-      // 3. ВЕТКА КЛИЕНТА: сначала ищем по телефону
+      // 3. Вход/регистрация клиента
       const existingUser = await findExistingUser(fullPhone);
 
       if (existingUser) {
-        // Если по этому номеру уже зарегистрирован мастер, не перезаписываем его роль
         if (existingUser.role === 'master') {
-          setError('Этот номер закреплен за мастером. Переключите роль на «Мастер» для входа.');
+          setError('Этот номер закреплен за мастером. Выберите роль «Мастер».');
           return;
         }
 
@@ -141,7 +137,7 @@ export default function Auth({ onAuthSuccess }) {
         return;
       }
 
-      // 4. Если клиент новый — создаем запись в таблице `users`
+      // 4. Создаем нового клиента, если запись не найдена
       const newClient = await createClientUser({
         phone: fullPhone,
         full_name: trimmedName,
@@ -151,55 +147,74 @@ export default function Auth({ onAuthSuccess }) {
       onAuthSuccess(newClient);
     } catch (err) {
       console.error('Ошибка при авторизации:', err.message);
-      setError('Не удалось выполнить вход. Попробуйте еще раз.');
+      setError('Не удалось выполнить вход. Проверьте соединение и попробуйте снова.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-lg border border-beauty-light">
-      <h2 className="text-2xl font-bold text-beauty-dark mb-6 text-center">
-        Вход в Beauty Hub
-      </h2>
+    <div className="w-full max-w-md mx-auto bg-white text-slate-900 p-6 sm:p-8 rounded-2xl shadow-xl border border-slate-200 text-left">
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold text-slate-900">
+          Вход в Beauty Hub
+        </h2>
+        <p className="text-sm text-slate-600 mt-1">
+          {role === 'client'
+            ? 'Укажите номер и имя для записи или входа'
+            : 'Вход только для зарегистрированных мастеров'}
+        </p>
+      </div>
 
-      {/* Блок отображения ошибок валидации и отказа во входе */}
+      {/* Блок вывода ошибок */}
       {error && (
-        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-xl text-sm">
+        <div
+          role="alert"
+          className="mb-5 p-3.5 bg-red-50 border border-red-300 text-red-800 rounded-xl text-sm font-medium"
+        >
           {error}
         </div>
       )}
 
       <form onSubmit={handleAuth} className="space-y-4">
-        {/* Выбор роли: для клиента возможна регистрация, для мастера — только вход из БД */}
+        {/* Выбор роли */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="auth-role"
+            className="block text-sm font-semibold text-slate-800 mb-1.5"
+          >
             Кто вы?
           </label>
           <select
+            id="auth-role"
             value={role}
             onChange={(e) => {
               setRole(e.target.value);
               setError(null);
             }}
-            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-beauty bg-white"
+            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition"
           >
             <option value="client">Клиент (вход или быстрая регистрация)</option>
-            <option value="master">Мастер (вход только для зарегистрированных в базе)</option>
+            <option value="master">Мастер (вход по базе)</option>
           </select>
         </div>
 
-        {/* Поле ввода телефона со статическим префиксом +7 */}
+        {/* Поле телефона со статическим префиксом +7 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="auth-phone"
+            className="block text-sm font-semibold text-slate-800 mb-1.5"
+          >
             Номер телефона
           </label>
-          <div className="relative flex items-center">
-            <span className="absolute left-3 text-gray-500 font-medium select-none">
+          <div className="flex items-center rounded-xl border border-slate-300 bg-slate-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-rose-500 focus-within:border-rose-500 transition overflow-hidden">
+            <span className="px-3.5 py-2.5 bg-slate-200 text-slate-900 font-bold text-sm border-r border-slate-300 select-none">
               +7
             </span>
             <input
+              id="auth-phone"
               type="tel"
+              inputMode="numeric"
               required
               placeholder="9990000000"
               value={phoneDigits}
@@ -208,35 +223,40 @@ export default function Auth({ onAuthSuccess }) {
                 const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
                 setPhoneDigits(digits);
               }}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-beauty"
+              className="w-full px-3.5 py-2.5 bg-transparent text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none"
             />
           </div>
-          <p className="text-xs text-gray-400 mt-1">
-            Введите 10 цифр номера без +7
+          <p className="text-xs text-slate-500 mt-1.5">
+            Введите 10 цифр номера без +7 ({phoneDigits.length}/10)
           </p>
         </div>
 
-        {/* Поле ввода имени отображаем для клиента (для мастера имя уже хранится в БД) */}
+        {/* Поле имени для клиента */}
         {role === 'client' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="auth-name"
+              className="block text-sm font-semibold text-slate-800 mb-1.5"
+            >
               Ваше имя
             </label>
             <input
+              id="auth-name"
               type="text"
               required
               placeholder="Анна Смирнова"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-beauty"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition"
             />
           </div>
         )}
 
+        {/* Кнопка отправки */}
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-beauty hover:bg-beauty-dark text-white font-semibold py-3 rounded-xl transition duration-200 shadow-md disabled:opacity-50"
+          className="w-full mt-2 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-semibold text-sm py-3 px-4 rounded-xl shadow-md transition disabled:opacity-50 cursor-pointer"
         >
           {loading ? 'Проверяем...' : 'Продолжить'}
         </button>

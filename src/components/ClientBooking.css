@@ -1,0 +1,113 @@
+/* =========================================================================
+   Горизонтальный степпер пошагового онбординга записи клиента
+   ========================================================================= */
+
+   .booking-steps {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 12px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .booking-steps__item {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  
+  .booking-steps__btn {
+    width: 100%;
+    height: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    background-color: #f8fafc;
+    color: var(--color-muted, #64748b);
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .booking-steps__btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.75;
+  }
+  
+  .booking-steps__badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 9999px;
+    background-color: #e2e8f0;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  
+  .booking-steps__content {
+    min-width: 0;
+  }
+  
+  .booking-steps__title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-ink, #0f172a);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .booking-steps__subtitle {
+    font-size: 12px;
+    color: var(--color-muted, #64748b);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  /* Пройденный шаг */
+  .booking-steps__btn--completed {
+    border-color: #6ee7b7;
+    background-color: #ecfdf5;
+    color: var(--color-ink, #0f172a);
+  }
+  
+  .booking-steps__btn--completed:hover:not(:disabled) {
+    border-color: #10b981;
+  }
+  
+  .booking-steps__btn--completed .booking-steps__badge {
+    background-color: #059669;
+    color: #ffffff;
+  }
+  
+  /* Активный шаг */
+  .booking-steps__btn--active {
+    border-color: var(--color-brand-dark, #881337);
+    background-color: var(--color-brand-dark, #881337);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(136, 19, 55, 0.18);
+  }
+  
+  .booking-steps__btn--active .booking-steps__badge {
+    background-color: var(--color-surface, #ffffff);
+    color: var(--color-brand-dark, #881337);
+  }
+  
+  .booking-steps__btn--active .booking-steps__title {
+    color: #ffffff;
+  }
+  
+  .booking-steps__btn--active .booking-steps__subtitle {
+    color: #ffe4e6;
+  }

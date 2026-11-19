@@ -18,6 +18,24 @@
   }
 }
 
+/* =========================================================================
+   Читаемость текста и кнопки выхода в шапке приложения (header.app-header)
+   ========================================================================= */
+
+header.app-header {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+header.app-header,
+header.app-header * {
+  color: #0f172a;
+}
+
+header.app-header button {
+  color: #1e293b;
+}
+
 /* Стопка логотипов: нижняя картинка обычная, две верхние сдвинуты абсолютно. */
 .hero {
   position: relative;
@@ -184,5 +202,4 @@
   &::after {
     right: 0;
     border-right-color: var(--border);
-  }
-}
+  }}

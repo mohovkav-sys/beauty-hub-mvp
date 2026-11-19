@@ -1,0 +1,54 @@
+/* =========================================================================
+   Стили визуальных состояний кнопки «Применить» для календаря мастера
+   ========================================================================= */
+
+   .master-schedule-apply-btn {
+    flex-shrink: 0;
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-width: 1px;
+    border-style: solid;
+    transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, opacity 150ms ease;
+  }
+  
+  /* Неактивное состояние: изменений еще нет */
+  .master-schedule-apply-btn[data-apply-state='disabled'] {
+    background-color: #e2e8f0;
+    color: #475569;
+    border-color: #cbd5e1;
+    opacity: 0.9;
+    cursor: not-allowed;
+  }
+  
+  /* Активное состояние: изменения внесены (зеленый оттенок по логике подтверждения) */
+  .master-schedule-apply-btn[data-apply-state='active'] {
+    background-color: #059669;
+    color: #ffffff;
+    border-color: #047857;
+    box-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.08);
+    cursor: pointer;
+  }
+  
+  .master-schedule-apply-btn[data-apply-state='active']:hover {
+    background-color: #047857;
+  }
+  
+  /* Состояние предупреждения: закрытие дня, на котором уже есть записи */
+  .master-schedule-apply-btn[data-apply-state='confirm-close'] {
+    background-color: #b91c1c;
+    color: #ffffff;
+    border-color: #991b1b;
+    box-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.08);
+    cursor: pointer;
+  }
+  
+  /* Состояние сохранения в базу данных */
+  .master-schedule-apply-btn[data-apply-state='saving'] {
+    background-color: #334155;
+    color: #ffffff;
+    border-color: #1e293b;
+    opacity: 0.9;
+    cursor: wait;
+  }

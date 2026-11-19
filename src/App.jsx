@@ -1,55 +1,138 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { supabase } from './lib/supabase';
 import Auth from './components/Auth';
 import MasterServices from './components/MasterServices';
+import MasterSchedule from './components/MasterSchedule';
+import ClientBooking from './components/ClientBooking';
+import './App.css';
+
+// Ключ для хранения сессии авторизованного пользователя в браузере
+const SESSION_STORAGE_KEY = 'beauty_hub_current_user_v1';
+
+/**
+ * Безопасно читает сохранённый профиль пользователя из localStorage.
+ * Возвращает объект пользователя или null, если сессии нет / данные повреждены.
+ *
+ * @returns {Object|null}
+ */
+function readStoredUser() {
+  try {
+    const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || !parsed.id) {
+      return null;
+    }
+    return parsed;
+  } catch (err) {
+    console.warn('Не удалось прочитать сессию из localStorage:', err);
+    return null;
+  }
+}
+
+/**
+ * Безопасно сохраняет профиль пользователя в localStorage или удаляет его при значении null.
+ *
+ * @param {Object|null} user
+ */
+function writeStoredUser(user) {
+  try {
+    if (!user) {
+      window.localStorage.removeItem(SESSION_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(user));
+  } catch (err) {
+    console.warn('Не удалось обновить сессию в localStorage:', err);
+  }
+}
+
 /**
  * Главный компонент приложения «Beauty Hub».
- * Управляет состоянием текущего пользователя и переключает между экраном входа,
+ * Хранит сессию пользователя в браузере (localStorage) и переключает между экраном входа,
  * кабинетом клиента и кабинетом мастера.
  */
 export default function App() {
-  // Храним данные авторизованного пользователя (null — если пользователь еще не вошел)
-  const [currentUser, setCurrentUser] = useState(null);
+  // Инициализируем состояние пользователя сразу из localStorage, чтобы при обновлении страницы не вылетало окно входа
+  const [currentUser, setCurrentUser] = useState(() => readStoredUser());
+
+  /**
+   * Синхронизирует профиль пользователя с таблицей `users` в Supabase,
+   * если в браузере уже была сохранена сессия.
+   */
+  const syncStoredUserFromDb = useCallback(async (userId) => {
+    if (!userId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, phone, full_name, role')
+        .eq('id', userId)
+        .maybeSingle();
+
+      // Не сбрасываем сессию при временных сетевых ошибках; обновляем только при успешном ответе
+      if (!error && data) {
+        setCurrentUser(data);
+        writeStoredUser(data);
+      }
+    } catch (err) {
+      console.warn('Не удалось освежить профиль пользователя из БД:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      syncStoredUserFromDb(currentUser.id);
+    }
+  }, [currentUser?.id, syncStoredUserFromDb]);
 
   /**
    * Обработчик успешной авторизации или регистрации.
-   * Сохраняет объект пользователя из таблицы `users` в состояние приложения.
+   * Сохраняет профиль в React-состоянии и в localStorage.
    *
    * @param {Object} user - Профиль пользователя (id, phone, full_name, role)
    */
   const handleAuthSuccess = (user) => {
     setCurrentUser(user);
+    writeStoredUser(user);
   };
 
   /**
    * Обработчик выхода из аккаунта.
-   * Сбрасывает текущего пользователя и возвращает приложение на экран входа.
+   * Очищает состояние и удаляет сессию из localStorage.
    */
   const handleLogout = () => {
     setCurrentUser(null);
+    writeStoredUser(null);
   };
 
   return (
     <div className="min-h-screen bg-beauty-light flex flex-col justify-between p-4">
       {/* Верхняя панель приложения с брендингом и статусом сессии */}
-      <header className="w-full max-w-5xl mx-auto bg-beauty-dark text-white px-6 py-4 rounded-2xl shadow-lg flex flex-wrap gap-4 justify-between items-center">
+      <header className="app-header w-full max-w-5xl mx-auto bg-white text-slate-900 border border-slate-200 px-6 py-4 rounded-2xl shadow-lg flex flex-wrap gap-4 justify-between items-center">
         <div className="flex items-center gap-3">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-wider">BEAUTY HUB</h1>
-          <span className="text-xs sm:text-sm bg-beauty px-3 py-1 rounded-full">MVP v1.0</span>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-wider text-slate-900">
+            BEAUTY HUB
+          </h1>
+          <span className="text-xs sm:text-sm bg-slate-100 text-slate-800 border border-slate-200 px-3 py-1 rounded-full font-semibold">
+            MVP v1.0
+          </span>
         </div>
 
-        {/* Если пользователь вошел — показываем его имя, роль и кнопку выхода */}
+        {/* Если пользователь вошёл — показываем его имя, роль и кнопку выхода */}
         {currentUser && (
           <div className="flex items-center gap-4">
             <div className="text-right text-sm">
               <p className="font-semibold">{currentUser.full_name}</p>
-              <p className="text-beauty-light/80 text-xs">
-                {currentUser.role === 'master' ? 'Кабинет мастера' : 'Кабинет клиента'} • {currentUser.phone}
+              <p className="text-xs text-slate-600">
+                {currentUser.role === 'master' ? 'Кабинет мастера' : 'Кабинет клиента'} •{' '}
+                {currentUser.phone}
               </p>
             </div>
             <button
               type="button"
               onClick={handleLogout}
-              className="bg-beauty-accent hover:opacity-90 text-white text-sm font-medium px-4 py-2 rounded-xl transition duration-200"
+              className="border border-slate-300 bg-slate-50 hover:bg-slate-100 text-sm font-semibold px-4 py-2 rounded-xl transition cursor-pointer"
             >
               Выйти
             </button>
@@ -63,40 +146,32 @@ export default function App() {
         {!currentUser ? (
           <Auth onAuthSuccess={handleAuthSuccess} />
         ) : currentUser.role === 'master' ? (
-          
+          /* ВЕТКА 2: Авторизован мастер — приветствие, услуги и расписание */
           <div className="space-y-6">
-                      {/* ВЕТКА 2: Авторизован мастер — приветствие и управление услугами */}
-                      <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-beauty-light text-left">
-                        <h2 className="text-2xl font-bold text-beauty-dark mb-2">
-                          Добро пожаловать, {currentUser.full_name}
-                        </h2>
-                        <p className="text-gray-600">
-                          Управляйте своим набором услуг ниже. Далее подключим расписание и записи клиентов.
-                        </p>
-                      </section>
-          
-                      <MasterServices master={currentUser} />
-                    </div>
+            <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-beauty-light text-left">
+              <h2 className="text-2xl font-bold text-beauty-dark mb-2">
+                Добро пожаловать, {currentUser.full_name}
+              </h2>
+              <p className="text-gray-600">
+                Управляйте услугами и рабочими днями в расписании ниже.
+              </p>
+            </section>
+            <MasterServices master={currentUser} />
+            <MasterSchedule master={currentUser} />
+          </div>
         ) : (
-          /* ВЕТКА 3: Авторизован клиент — показываем заготовку кабинета клиента */
-          <section className="bg-white p-8 rounded-2xl shadow-md border border-beauty-light">
-            <h2 className="text-2xl font-bold text-beauty-dark mb-2">
-              Привет, {currentUser.full_name}!
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Здесь вы сможете выбрать услугу, подобрать удобное время и посмотреть свои записи.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-              <div className="p-4 rounded-xl bg-beauty-light/60 border border-beauty-light">
-                <h3 className="font-semibold text-beauty-dark mb-1">Новая запись</h3>
-                <p className="text-sm text-gray-600">Выбор услуги и свободного окошка у мастера.</p>
-              </div>
-              <div className="p-4 rounded-xl bg-beauty-light/60 border border-beauty-light">
-                <h3 className="font-semibold text-beauty-dark mb-1">Мои записи</h3>
-                <p className="text-sm text-gray-600">Активные бронирования и напоминания.</p>
-              </div>
-            </div>
-          </section>
+          /* ВЕТКА 3: Авторизован клиент — приветствие и запись к мастеру */
+          <div className="space-y-6">
+            <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-beauty-light text-left">
+              <h2 className="text-2xl font-bold text-beauty-dark mb-2">
+                Добро пожаловать, {currentUser.full_name}
+              </h2>
+              <p className="text-gray-600">
+                Выберите услугу, мастера, дату и свободное время для записи.
+              </p>
+            </section>
+            <ClientBooking client={currentUser} />
+          </div>
         )}
       </main>
 

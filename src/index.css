@@ -1,82 +1,66 @@
 @import "tailwindcss";
+
 /* Кастомные цвета бренда «Beauty Hub» для Tailwind CSS v4 */
 @theme {
-  --color-brand: #e11d48;         /* Основной акцентный цвет (кнопки, активные элементы) */
+  --color-brand: #e11d48;         /* Основной акцентный цвет */
   --color-brand-hover: #be123c;   /* Наведение на акцентный цвет */
-  --color-brand-dark: #881337;    /* Темный оттенок для шапки / заголовков */
-  --color-brand-soft: #ffe4e6;    /* Мягкий фон страницы или подсветка */
+  --color-brand-dark: #881337;    /* Тёмный оттенок бренда */
+  --color-brand-soft: #ffe4e6;    /* Мягкий фон и подсветка */
 
-  --color-surface: #ffffff;       /* Фон карточек */
-  --color-ink: #0f172a;           /* Основной темный текст */
+  --color-surface: #ffffff;       /* Фон карточек и поверхностей */
+  --color-ink: #0f172a;           /* Основной тёмный текст */
   --color-muted: #64748b;         /* Вторичный текст и подсказки */
 }
 
+:root {
+  --text: #475569;
+  --text-h: #0f172a;
+  --bg: #ffffff;
+  --border: #e2e8f0;
+  --code-bg: #f1f5f9;
 
-/* Если в системе включена тёмная тема, подменяем те же переменные. */
-@media (prefers-color-scheme: dark) {
-  
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+  --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --heading: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  font: 16px/145% var(--sans);
+  color: var(--text);
+  background-color: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Контейнер приложения: по центру, не шире 1126px, на всю высоту экрана. */
+body {
+  margin: 0;
+}
+
 #root {
   width: 1126px;
   max-width: 100%;
   margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
   min-height: 100svh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
 }
 
-/* Общий вид заголовков. Ниже у h1 и h2 свои размеры. */
 h1,
 h2 {
   font-family: var(--heading);
-  font-weight: 500;
   color: var(--text-h);
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-/* Абзацы без лишнего внешнего отступа: расстояния задают родительские блоки. */
 p {
   margin: 0;
 }
 
-/* Моноширинный вид и для фрагментов кода, и для кнопки-счётчика. */
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
 code {
-  font-size: 15px;
+  font-family: var(--mono);
+  font-size: 14px;
   line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+  padding: 2px 6px;
+  background-color: var(--code-bg);
+  border-radius: 4px;
 }
-

@@ -100,7 +100,7 @@ function buildSlotIsoFromLocalDateAndTime(dateKey, hhmm) {
  * @param {Object} props - Свойства компонента
  * @param {Object} props.client - Профиль авторизованного клиента из таблицы `users`
  */
-export default function ClientBooking({ client }) {
+export default function ClientBooking({ client, onBookingCreated }) {
   // Номер активного шага онбординга (1 — Мастер, 2 — Услуга, 3 — Дата и время)
   const [currentStep, setCurrentStep] = useState(1);
 
@@ -509,6 +509,9 @@ export default function ClientBooking({ client }) {
       setSelectedDateKey('');
       setSelectedServiceId('');
       setCurrentStep(1);
+      if (typeof onBookingCreated === 'function') {
+        onBookingCreated();
+      }
     } catch (err) {
       console.error('Ошибка при создании записи:', err.message);
       setError('Не удалось сохранить запись. Попробуйте выбрать другой слот или повторить позже.');

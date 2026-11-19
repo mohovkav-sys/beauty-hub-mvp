@@ -4,7 +4,10 @@ import Auth from './components/Auth';
 import MasterServices from './components/MasterServices';
 import MasterSchedule from './components/MasterSchedule';
 import ClientBooking from './components/ClientBooking';
+import ClientBookingsList from './components/ClientBookingsList';
+
 import './App.css';
+
 
 // Ключ для хранения сессии авторизованного пользователя в браузере
 const SESSION_STORAGE_KEY = 'beauty_hub_current_user_v1';
@@ -55,8 +58,19 @@ function writeStoredUser(user) {
 export default function App() {
   // Инициализируем состояние пользователя сразу из localStorage, чтобы при обновлении страницы не вылетало окно входа
   const [currentUser, setCurrentUser] = useState(() => readStoredUser());
+  const [bookingsRefreshKey, setBookingsRefreshKey] = useState(0);
+/**<div className="space-y-6">
+  <ClientBooking
+    client={currentUser}
+    onBookingCreated={() => setBookingsRefreshKey((prev) => prev + 1)}
+  />
 
-  /**
+  <ClientBookingsList
+    client={currentUser}
+    refreshKey={bookingsRefreshKey}
+  />
+</div>
+  
    * Синхронизирует профиль пользователя с таблицей `users` в Supabase,
    * если в браузере уже была сохранена сессия.
    */
@@ -170,7 +184,15 @@ export default function App() {
                 Выберите услугу, мастера, дату и свободное время для записи.
               </p>
             </section>
-            <ClientBooking client={currentUser} />
+            <ClientBooking
+              client={currentUser}
+              onBookingCreated={() => setBookingsRefreshKey((prev) => prev + 1)}
+            />
+
+            <ClientBookingsList
+              client={currentUser}
+              refreshKey={bookingsRefreshKey}
+            />
           </div>
         )}
       </main>

@@ -4,10 +4,10 @@ import { createClient } from '@supabase/supabase-js'
 // ИНИЦИАЛИЗАЦИЯ КЛИЕНТА SUPABASE ДЛЯ ПРОЕКТА «BEAUTY HUB»
 // =========================================================================
 
-// Твой Project URL (API URL из панели Supabase)
-const SUPABASE_URL = 'https:/​​​/hwjkdvozvmrdowxcguih​.supabase​.co'
+// Базовый адрес проекта Supabase (очищенный от невидимых символов)
+const SUPABASE_URL = 'https://hwjkdvozvmrdowxcguih.supabase.co'
 
-// Твой публичный анонимный ключ (который ты только что скопировал)
+// Публичный анонимный ключ для безопасного доступа с фронтенда
 const SUPABASE_ANON_KEY = 'sb_publishable_4VYlk8in8G88eTrIYEbcLQ__S8RGmtn'
 
 /**

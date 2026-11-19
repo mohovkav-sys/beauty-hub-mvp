@@ -2,67 +2,156 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
 /**
- * Компонент авторизации с фиксированным префиксом "+7" для телефона,
- * валидацией полей и подробными комментариями на русском языке.
+ * Компонент авторизации/регистрации для «Beauty Hub».
+ * - Клиенты при первом входе автоматически регистрируются в таблице `users`.
+ * - Мастера НЕ создаются через форму: войти может только существующий в БД мастер с role = 'master'.
+ *
+ * @param {Object} props
+ * @param {Function} props.onAuthSuccess - Колбэк при успешном входе, получает объект пользователя
  */
 export default function Auth({ onAuthSuccess }) {
-  const [phoneDigits, setPhoneDigits] = useState(''); // Храним 10 цифр номера после +7
+  // Храним ровно 10 цифр номера после статического префикса +7
+  const [phoneDigits, setPhoneDigits] = useState('');
+  // Имя пользователя (для клиента при регистрации/входе, для мастера — опционально/для проверки)
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState('client'); // Роль по умолчанию — клиент
+  // Выбранная вкладка/роль входа: 'client' или 'master'
+  const [role, setRole] = useState('client');
+  // Флаг активного сетевого запроса для блокировки кнопки
   const [loading, setLoading] = useState(false);
+  // Текст ошибки валидации или отказа в доступе
   const [error, setError] = useState(null);
 
+  /**
+   * Валидирует поля формы перед обращением к базе данных.
+   * Возвращает объект { valid: boolean, trimmedName: string, fullPhone: string }.
+   */
+  const validateForm = () => {
+    const trimmedName = fullName.trim();
+
+    // Для клиента имя обязательно (минимум 2 символа)
+    if (role === 'client' && trimmedName.length < 2) {
+      setError('Введите ваше имя (минимум 2 символа).');
+      return { valid: false };
+    }
+
+    // Номер телефона должен содержать строго 10 цифр после +7
+    if (phoneDigits.length !== 10) {
+      setError('Введите корректный номер телефона — ровно 10 цифр после +7.');
+      return { valid: false };
+    }
+
+    return {
+      valid: true,
+      trimmedName,
+      fullPhone: `+7${phoneDigits}`,
+    };
+  };
+
+  /**
+   * Ищет существующего пользователя в таблице `users` по номеру телефона.
+   * При необходимости фильтрует по роли.
+   *
+   * @param {string} fullPhone - Телефон в формате +7XXXXXXXXXX
+   * @param {string|null} requiredRole - Если передана роль (например, 'master'), ищет только с ней
+   */
+  const findExistingUser = async (fullPhone, requiredRole = null) => {
+    let query = supabase
+      .from('users')
+      .select('*')
+      .eq('phone', fullPhone);
+
+    if (requiredRole) {
+      query = query.eq('role', requiredRole);
+    }
+
+    const { data, error: fetchError } = await query.maybeSingle();
+
+    if (fetchError) {
+      throw fetchError;
+    }
+
+    return data;
+  };
+
+  /**
+   * Создает нового пользователя в таблице `users`.
+   * Вызывается ТОЛЬКО для роли 'client', если запись с таким телефоном еще не найдена.
+   *
+   * @param {Object} userPayload - Данные нового клиента ({ phone, full_name, role })
+   */
+  const createClientUser = async (userPayload) => {
+    const { data, error: insertError } = await supabase
+      .from('users')
+      .insert([userPayload])
+      .select()
+      .single();
+
+    if (insertError) {
+      throw insertError;
+    }
+
+    return data;
+  };
+
+  /**
+   * Обрабатывает отправку формы входа/регистрации.
+   * Разделяет сценарии для мастера (строго существующая запись в БД)
+   * и клиента (вход существующего или создание нового профиля).
+   *
+   * @param {React.FormEvent} e - Событие отправки формы
+   */
   const handleAuth = async (e) => {
     e.preventDefault();
     setError(null);
 
-    // 1. Валидация имени
-    const trimmedName = fullName.trim();
-    if (trimmedName.length < 2) {
-      setError('Имя должно содержать хотя бы 2 символа.');
+    // 1. Проверяем корректность введенных данных
+    const { valid, trimmedName, fullPhone } = validateForm();
+    if (!valid) {
       return;
     }
-
-    // 2. Валидация телефона (строго 10 цифр после +7)
-    if (phoneDigits.length < 10) {
-      setError('Введите полный номер телефона (10 цифр после +7).');
-      return;
-    }
-
-    // Формируем итоговый номер для базы данных в формате +79991234567
-    const fullPhoneNumber = `+7${phoneDigits}`;
 
     setLoading(true);
 
     try {
-      // 3. Проверяем, существует ли пользователь в таблице users по этому телефону
-      const { data: existingUser, error: fetchError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('phone', fullPhoneNumber)
-        .maybeSingle();
+      // 2. ВЕТКА МАСТЕРА: регистрация запрещена, проверяем наличие мастера в базе
+      if (role === 'master') {
+        const existingMaster = await findExistingUser(fullPhone, 'master');
 
-      if (fetchError) throw fetchError;
+        if (!existingMaster) {
+          // Не создаем нового мастера — отказываем во входе
+          setError('Доступ запрещен: мастер с таким номером не найден в базе.');
+          return;
+        }
+
+        onAuthSuccess(existingMaster);
+        return;
+      }
+
+      // 3. ВЕТКА КЛИЕНТА: сначала ищем по телефону
+      const existingUser = await findExistingUser(fullPhone);
 
       if (existingUser) {
-        // Если пользователь найден — успешно авторизуем
-        onAuthSuccess(existingUser);
-      } else {
-        // 4. Если пользователя нет — создаем новую запись в базе данных
-        const { data: newUser, error: insertError } = await supabase
-          .from('users')
-          .insert([
-            { phone: fullPhoneNumber, full_name: trimmedName, role }
-          ])
-          .select()
-          .single();
+        // Если по этому номеру уже зарегистрирован мастер, не перезаписываем его роль
+        if (existingUser.role === 'master') {
+          setError('Этот номер закреплен за мастером. Переключите роль на «Мастер» для входа.');
+          return;
+        }
 
-        if (insertError) throw insertError;
-        onAuthSuccess(newUser);
+        onAuthSuccess(existingUser);
+        return;
       }
+
+      // 4. Если клиент новый — создаем запись в таблице `users`
+      const newClient = await createClientUser({
+        phone: fullPhone,
+        full_name: trimmedName,
+        role: 'client',
+      });
+
+      onAuthSuccess(newClient);
     } catch (err) {
-      console.error('Ошибка авторизации:', err.message);
-      setError('Ошибка при обращении к базе данных: ' + err.message);
+      console.error('Ошибка при авторизации:', err.message);
+      setError('Не удалось выполнить вход. Попробуйте еще раз.');
     } finally {
       setLoading(false);
     }
@@ -70,9 +159,11 @@ export default function Auth({ onAuthSuccess }) {
 
   return (
     <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-lg border border-beauty-light">
-      <h2 className="text-2xl font-bold text-beauty-dark mb-6 text-center">Вход в Beauty Hub</h2>
-      
-      {/* Блок вывода ошибок валидации или сети */}
+      <h2 className="text-2xl font-bold text-beauty-dark mb-6 text-center">
+        Вход в Beauty Hub
+      </h2>
+
+      {/* Блок отображения ошибок валидации и отказа во входе */}
       {error && (
         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-xl text-sm">
           {error}
@@ -80,63 +171,74 @@ export default function Auth({ onAuthSuccess }) {
       )}
 
       <form onSubmit={handleAuth} className="space-y-4">
+        {/* Выбор роли: для клиента возможна регистрация, для мастера — только вход из БД */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Кто вы?
+          </label>
+          <select
+            value={role}
+            onChange={(e) => {
+              setRole(e.target.value);
+              setError(null);
+            }}
+            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-beauty bg-white"
+          >
+            <option value="client">Клиент (вход или быстрая регистрация)</option>
+            <option value="master">Мастер (вход только для зарегистрированных в базе)</option>
+          </select>
+        </div>
+
         {/* Поле ввода телефона со статическим префиксом +7 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Номер телефона</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Номер телефона
+          </label>
           <div className="relative flex items-center">
-            {/* Статический визуальный префикс +7 */}
             <span className="absolute left-3 text-gray-500 font-medium select-none">
               +7
             </span>
             <input
               type="tel"
               required
-              placeholder="(999) 000-00-00"
+              placeholder="9990000000"
               value={phoneDigits}
               onChange={(e) => {
-                // Автоматически очищаем ввод от всего, кроме цифр, и ограничиваем до 10 символов
+                // Оставляем только цифры и ограничиваем длину 10 символами
                 const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
                 setPhoneDigits(digits);
               }}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-beauty"
             />
           </div>
-          <p className="text-xs text-gray-400 mt-1">Введите 10 цифр номера (например, 9991234567)</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Введите 10 цифр номера без +7
+          </p>
         </div>
 
-        {/* Поле ввода имени */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Ваше имя</label>
-          <input
-            type="text"
-            required
-            placeholder="Анна Смирнова"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-beauty"
-          />
-        </div>
+        {/* Поле ввода имени отображаем для клиента (для мастера имя уже хранится в БД) */}
+        {role === 'client' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Ваше имя
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="Анна Смирнова"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-beauty"
+            />
+          </div>
+        )}
 
-        {/* Выбор роли (Клиент или Мастер) */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Кто вы?</label>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-beauty bg-white"
-          >
-            <option value="client">Клиент (хочу записаться)</option>
-            <option value="master">Мастер (принимаю записи)</option>
-          </select>
-        </div>
-
-        {/* Кнопка отправки формы */}
         <button
           type="submit"
           disabled={loading}
           className="w-full bg-beauty hover:bg-beauty-dark text-white font-semibold py-3 rounded-xl transition duration-200 shadow-md disabled:opacity-50"
         >
-          {loading ? 'Проверка...' : 'Продолжить'}
+          {loading ? 'Проверяем...' : 'Продолжить'}
         </button>
       </form>
     </div>

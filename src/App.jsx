@@ -1,144 +1,118 @@
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import Auth from './components/Auth';
 
 /**
- * Компонент авторизации с фиксированным префиксом "+7" для телефона,
- * валидацией полей и подробными комментариями на русском языке.
+ * Главный компонент приложения «Beauty Hub».
+ * Управляет состоянием текущего пользователя и переключает между экраном входа,
+ * кабинетом клиента и кабинетом мастера.
  */
-export default function Auth({ onAuthSuccess }) {
-  const [phoneDigits, setPhoneDigits] = useState(''); // Храним 10 цифр номера после +7
-  const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState('client'); // Роль по умолчанию — клиент
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+export default function App() {
+  // Храним данные авторизованного пользователя (null — если пользователь еще не вошел)
+  const [currentUser, setCurrentUser] = useState(null);
 
-  const handleAuth = async (e) => {
-    e.preventDefault();
-    setError(null);
+  /**
+   * Обработчик успешной авторизации или регистрации.
+   * Сохраняет объект пользователя из таблицы `users` в состояние приложения.
+   *
+   * @param {Object} user - Профиль пользователя (id, phone, full_name, role)
+   */
+  const handleAuthSuccess = (user) => {
+    setCurrentUser(user);
+  };
 
-    // 1. Валидация имени
-    const trimmedName = fullName.trim();
-    if (trimmedName.length < 2) {
-      setError('Имя должно содержать хотя бы 2 символа.');
-      return;
-    }
-
-    // 2. Валидация телефона (строго 10 цифр после +7)
-    if (phoneDigits.length < 10) {
-      setError('Введите полный номер телефона (10 цифр после +7).');
-      return;
-    }
-
-    // Формируем итоговый номер для базы данных в формате +79991234567
-    const fullPhoneNumber = `+7${phoneDigits}`;
-
-    setLoading(true);
-
-    try {
-      // 3. Проверяем, существует ли пользователь в таблице users по этому телефону
-      const { data: existingUser, error: fetchError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('phone', fullPhoneNumber)
-        .maybeSingle();
-
-      if (fetchError) throw fetchError;
-
-      if (existingUser) {
-        // Если пользователь найден — успешно авторизуем
-        onAuthSuccess(existingUser);
-      } else {
-        // 4. Если пользователя нет — создаем новую запись в базе данных
-        const { data: newUser, error: insertError } = await supabase
-          .from('users')
-          .insert([
-            { phone: fullPhoneNumber, full_name: trimmedName, role }
-          ])
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        onAuthSuccess(newUser);
-      }
-    } catch (err) {
-      console.error('Ошибка авторизации:', err.message);
-      setError('Ошибка при обращении к базе данных: ' + err.message);
-    } finally {
-      setLoading(false);
-    }
+  /**
+   * Обработчик выхода из аккаунта.
+   * Сбрасывает текущего пользователя и возвращает приложение на экран входа.
+   */
+  const handleLogout = () => {
+    setCurrentUser(null);
   };
 
   return (
-    <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-lg border border-beauty-light">
-      <h2 className="text-2xl font-bold text-beauty-dark mb-6 text-center">Вход в Beauty Hub</h2>
-      
-      {/* Блок вывода ошибок валидации или сети */}
-      {error && (
-        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-xl text-sm">
-          {error}
+    <div className="min-h-screen bg-beauty-light flex flex-col justify-between p-4">
+      {/* Верхняя панель приложения с брендингом и статусом сессии */}
+      <header className="w-full max-w-5xl mx-auto bg-beauty-dark text-white px-6 py-4 rounded-2xl shadow-lg flex flex-wrap gap-4 justify-between items-center">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-wider">BEAUTY HUB</h1>
+          <span className="text-xs sm:text-sm bg-beauty px-3 py-1 rounded-full">MVP v1.0</span>
         </div>
-      )}
 
-      <form onSubmit={handleAuth} className="space-y-4">
-        {/* Поле ввода телефона со статическим префиксом +7 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Номер телефона</label>
-          <div className="relative flex items-center">
-            {/* Статический визуальный префикс +7 */}
-            <span className="absolute left-3 text-gray-500 font-medium select-none">
-              +7
-            </span>
-            <input
-              type="tel"
-              required
-              placeholder="(999) 000-00-00"
-              value={phoneDigits}
-              onChange={(e) => {
-                // Автоматически очищаем ввод от всего, кроме цифр, и ограничиваем до 10 символов
-                const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
-                setPhoneDigits(digits);
-              }}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-beauty"
-            />
+        {/* Если пользователь вошел — показываем его имя, роль и кнопку выхода */}
+        {currentUser && (
+          <div className="flex items-center gap-4">
+            <div className="text-right text-sm">
+              <p className="font-semibold">{currentUser.full_name}</p>
+              <p className="text-beauty-light/80 text-xs">
+                {currentUser.role === 'master' ? 'Кабинет мастера' : 'Кабинет клиента'} • {currentUser.phone}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="bg-beauty-accent hover:opacity-90 text-white text-sm font-medium px-4 py-2 rounded-xl transition duration-200"
+            >
+              Выйти
+            </button>
           </div>
-          <p className="text-xs text-gray-400 mt-1">Введите 10 цифр номера (например, 9991234567)</p>
-        </div>
+        )}
+      </header>
 
-        {/* Поле ввода имени */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Ваше имя</label>
-          <input
-            type="text"
-            required
-            placeholder="Анна Смирнова"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-beauty"
-          />
-        </div>
+      {/* Основная рабочая область приложения */}
+      <main className="w-full max-w-5xl mx-auto my-8 flex-1 flex flex-col justify-center">
+        {/* ВЕТКА 1: Пользователь не авторизован — показываем форму входа */}
+        {!currentUser ? (
+          <Auth onAuthSuccess={handleAuthSuccess} />
+        ) : currentUser.role === 'master' ? (
+          /* ВЕТКА 2: Авторизован мастер — показываем заготовку кабинета мастера */
+          <section className="bg-white p-8 rounded-2xl shadow-md border border-beauty-light">
+            <h2 className="text-2xl font-bold text-beauty-dark mb-2">
+              Добро пожаловать, {currentUser.full_name}
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Здесь будет управление услугами, рабочим расписанием и записями клиентов.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
+              <div className="p-4 rounded-xl bg-beauty-light/60 border border-beauty-light">
+                <h3 className="font-semibold text-beauty-dark mb-1">Мои услуги</h3>
+                <p className="text-sm text-gray-600">Прайс, названия и длительность процедур.</p>
+              </div>
+              <div className="p-4 rounded-xl bg-beauty-light/60 border border-beauty-light">
+                <h3 className="font-semibold text-beauty-dark mb-1">Расписание</h3>
+                <p className="text-sm text-gray-600">Свободные слоты и рабочие дни.</p>
+              </div>
+              <div className="p-4 rounded-xl bg-beauty-light/60 border border-beauty-light">
+                <h3 className="font-semibold text-beauty-dark mb-1">Записи клиентов</h3>
+                <p className="text-sm text-gray-600">Предстоящие визиты и сводка на завтра.</p>
+              </div>
+            </div>
+          </section>
+        ) : (
+          /* ВЕТКА 3: Авторизован клиент — показываем заготовку кабинета клиента */
+          <section className="bg-white p-8 rounded-2xl shadow-md border border-beauty-light">
+            <h2 className="text-2xl font-bold text-beauty-dark mb-2">
+              Привет, {currentUser.full_name}!
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Здесь вы сможете выбрать услугу, подобрать удобное время и посмотреть свои записи.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+              <div className="p-4 rounded-xl bg-beauty-light/60 border border-beauty-light">
+                <h3 className="font-semibold text-beauty-dark mb-1">Новая запись</h3>
+                <p className="text-sm text-gray-600">Выбор услуги и свободного окошка у мастера.</p>
+              </div>
+              <div className="p-4 rounded-xl bg-beauty-light/60 border border-beauty-light">
+                <h3 className="font-semibold text-beauty-dark mb-1">Мои записи</h3>
+                <p className="text-sm text-gray-600">Активные бронирования и напоминания.</p>
+              </div>
+            </div>
+          </section>
+        )}
+      </main>
 
-        {/* Выбор роли (Клиент или Мастер) */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Кто вы?</label>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-beauty bg-white"
-          >
-            <option value="client">Клиент (хочу записаться)</option>
-            <option value="master">Мастер (принимаю записи)</option>
-          </select>
-        </div>
-
-        {/* Кнопка отправки формы */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-beauty hover:bg-beauty-dark text-white font-semibold py-3 rounded-xl transition duration-200 shadow-md disabled:opacity-50"
-        >
-          {loading ? 'Проверка...' : 'Продолжить'}
-        </button>
-      </form>
+      {/* Нижний колонтитул */}
+      <footer className="w-full max-w-5xl mx-auto text-center text-sm text-gray-500 py-2">
+        Beauty Hub • Клиентский и мастерский кабинеты
+      </footer>
     </div>
   );
 }

@@ -16,6 +16,8 @@ import MasterSchedule from './components/MasterSchedule';
 // Импортируем компоненты записи и просмотра записей для клиента
 import ClientBooking from './components/ClientBooking';
 import ClientBookingsList from './components/ClientBookingsList';
+//импортируем список записей мастеру
+import MasterBookingsList from './components/MasterBookingsList';
 // Подключаем стили приложения
 import './App.css';
 
@@ -166,14 +168,9 @@ export default function App() {
 
     if (activePage === 'bookings') {
       return (
-        <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-md border border-beauty-light text-left space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold text-beauty-dark">Записи клиентов</h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Раздел управления записями мастера.
-              </p>
-            </div>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-white px-6 py-4 rounded-2xl shadow-sm border border-beauty-light">
+            <h2 className="text-xl font-bold text-beauty-dark">Записи клиентов</h2>
             <button
               type="button"
               onClick={() => setActivePage('home')}
@@ -182,10 +179,8 @@ export default function App() {
               ← На главную кабинета
             </button>
           </div>
-          <p className="text-sm text-slate-600">
-            Здесь отображаются записи клиентов мастера. При необходимости можно связать список записей из таблицы <code>bookings</code> по <code>master_id</code>.
-          </p>
-        </section>
+          <MasterBookingsList master={currentUser} />
+        </div>
       );
     }
 

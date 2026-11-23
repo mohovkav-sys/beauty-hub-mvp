@@ -1,0 +1,112 @@
+/* Только раскладка и геометрия формы входа; цвета, радиусы и тени берутся из src/styles/ui-kit.css */
+
+.auth-card {
+    width: 100%;
+    max-width: 28rem;
+    margin: 0 auto;
+    padding: 1.5rem 2rem;
+    background-color: var(--surface-elevated);
+    color: var(--text-ink-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+    text-align: left;
+  }
+  
+  .auth-field-control {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    background-color: var(--surface-muted);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-ink-primary);
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  
+  .auth-field-control::placeholder {
+    color: var(--text-ink-subtle);
+  }
+  
+  .auth-field-control:focus {
+    outline: none;
+    background-color: var(--surface-elevated);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--accent-soft-tint);
+  }
+  
+  .auth-phone-group {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    background-color: var(--surface-muted);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  
+  .auth-phone-group:focus-within {
+    background-color: var(--surface-elevated);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--accent-soft-tint);
+  }
+  
+  .auth-phone-prefix {
+    padding: 0.625rem 0.875rem;
+    background-color: var(--accent-soft-tint);
+    color: var(--text-ink-primary);
+    border-right: 1px solid var(--border-subtle);
+    font-size: 0.875rem;
+    font-weight: 700;
+    user-select: none;
+  }
+  
+  .auth-phone-input {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    background: transparent;
+    border: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-ink-primary);
+  }
+  
+  .auth-phone-input::placeholder {
+    color: var(--text-ink-subtle);
+  }
+  
+  .auth-phone-input:focus {
+    outline: none;
+  }
+  
+  .auth-submit-btn {
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.75rem 1rem;
+    background-color: var(--accent-primary);
+    color: var(--text-on-dark);
+    border: 1px solid var(--accent-primary);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 600;
+    box-shadow: var(--shadow-button);
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  }
+  
+  .auth-submit-btn:hover:not(:disabled) {
+    background-color: var(--accent-primary-hover);
+    border-color: var(--accent-primary-hover);
+  }
+  
+  .auth-submit-btn:active:not(:disabled) {
+    background-color: var(--accent-primary-active);
+    border-color: var(--accent-primary-active);
+  }
+  
+  .auth-submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }

@@ -526,9 +526,7 @@ export default function ClientBooking({ client, onBookingCreated }) {
       <div className="space-y-4">
         <div>
           <h2 className="text-2xl font-bold text-brand-dark">Онлайн-запись</h2>
-          <p className="text-sm text-muted mt-1">
-            Пройдите 3 простых шага: выберите мастера, нужную услугу и удобное время визита.
-          </p>
+
         </div>
 
         {/* Горизонтальный индикатор 3 шагов (стилизация полностью в ClientBooking.css) */}

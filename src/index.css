@@ -2,38 +2,14 @@
 
 /* Кастомные цвета бренда «Beauty Hub» для Tailwind CSS v4 */
 @theme {
-  --color-brand: #e11d48;         /* Основной акцентный цвет */
-  --color-brand-hover: #be123c;   /* Наведение на акцентный цвет */
-  --color-brand-dark: #881337;    /* Тёмный оттенок бренда */
-  --color-brand-soft: #ffe4e6;    /* Мягкий фон и подсветка */
+  --color-brand: #9125A7;
+    --color-brand-hover: #6F1D80;
+  --color-brand-dark: #591766;
+  --color-brand-soft: #F0D1F6;
 
-  --color-surface: #ffffff;       /* Фон карточек и поверхностей */
-  --color-ink: #0f172a;           /* Основной тёмный текст */
-  --color-muted: #64748b;         /* Вторичный текст и подсказки */
-}
-
-:root {
-  --text: #475569;
-  --text-h: #0f172a;
-  --bg: #ffffff;
-  --border: #e2e8f0;
-  --code-bg: #f1f5f9;
-
-  --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --heading: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-
-  font: 16px/145% var(--sans);
-  color: var(--text);
-  background-color: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-body {
-  margin: 0;
+  --color-surface: #ffffff;
+  --color-ink: #16061A;
+  --color-muted: #666666;
 }
 
 #root {
@@ -46,21 +22,11 @@ body {
   box-sizing: border-box;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  color: var(--text-h);
-}
-
-p {
-  margin: 0;
-}
-
 code {
-  font-family: var(--mono);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 14px;
   line-height: 135%;
   padding: 2px 6px;
-  background-color: var(--code-bg);
+  background-color: #f1f5f9;
   border-radius: 4px;
 }

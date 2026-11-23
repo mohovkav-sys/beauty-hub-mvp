@@ -5,9 +5,10 @@ import { StrictMode } from 'react'
 // createRoot связывает React с обычным HTML-элементом на странице.
 import { createRoot } from 'react-dom/client'
 
+
 // Общие стили: цвета, шрифт, отступы страницы.
 import './index.css'
-
+import './styles/ui-kit.css';
 // Компонент, который рисует всё содержимое страницы.
 import App from './App.jsx'
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { validateServiceFields } from '../utils/serviceValidation';
 
 /**
  * Блок управления собственными услугами в личном кабинете мастера.
@@ -69,44 +70,14 @@ export default function MasterServices({ master }) {
    *
    * @param {{ title?: string, price: string|number, duration: string|number, checkTitle?: boolean }} params
    * @returns {{ valid: boolean, message?: string, parsedPrice?: number, parsedDuration?: number }}
-   */
-  const validateServiceFields = ({ title = '', price, duration, checkTitle = false }) => {
-    if (checkTitle && title.trim().length < 3) {
-      return { valid: false, message: 'Название услуги должно содержать минимум 3 символа.' };
-    }
-
-    const parsedPrice = Number(price);
-    if (price === '' || Number.isNaN(parsedPrice) || parsedPrice < 0) {
-      return { valid: false, message: 'Укажите корректную цену (число от 0 и выше).' };
-    }
-
-    const parsedDuration = Number(duration);
-    if (
-      duration === '' ||
-      !Number.isInteger(parsedDuration) ||
-      parsedDuration < 5 ||
-      parsedDuration > 600
-    ) {
-      return {
-        valid: false,
-        message: 'Укажите длительность в минутах (целое число от 5 до 600).',
-      };
-    }
-
-    return { valid: true, parsedPrice, parsedDuration };
-  };
-
-  /**
-   * Добавляет новую услугу с привязкой к текущему мастеру.
-   *
-   * @param {React.FormEvent} e
-   */
+*/
   const handleAddService = async (e) => {
     e.preventDefault();
     setError(null);
     setNotice(null);
 
     const check = validateServiceFields({
+      
       title: newTitle,
       price: newPrice,
       duration: newDuration,
@@ -126,7 +97,7 @@ export default function MasterServices({ master }) {
         .insert([
           {
             master_id: master.id,
-            title: newTitle.trim(),
+            title: check.trimmedTitle,
             price: check.parsedPrice,
             duration_minutes: check.parsedDuration,
             is_active: true,
@@ -168,9 +139,21 @@ export default function MasterServices({ master }) {
    *
    * @param {string} serviceId
    */
+  /**
+   * Сохраняет обновлённую цену и длительность услуги в Supabase
+   * с проверкой наличия мастера, валидацией полей и изоляцией по `master_id`.
+   * Изменения применяются к услуге для последующих записей, не переписывая историю.
+   *
+   * @param {string} serviceId - Идентификатор редактируемой услуги
+   */
   const handleSaveEdit = async (serviceId) => {
     setError(null);
     setNotice(null);
+
+    if (!master?.id) {
+      setError('Не удалось определить профиль мастера. Перезагрузите страницу.');
+      return;
+    }
 
     const check = validateServiceFields({
       price: editPrice,
@@ -186,23 +169,26 @@ export default function MasterServices({ master }) {
     setSubmitting(true);
 
     try {
-      const { error: updateError } = await supabase
+      const { data: updatedRow, error: updateError } = await supabase
         .from('services')
         .update({
           price: check.parsedPrice,
           duration_minutes: check.parsedDuration,
         })
         .eq('id', serviceId)
-        .eq('master_id', master.id); // Дополнительная защита изоляции по мастеру
+        .eq('master_id', master.id) // Дополнительная защита изоляции по мастеру
+        .select('id, master_id, title, price, duration_minutes, is_active')
+        .maybeSingle();
 
       if (updateError) throw updateError;
 
+      if (!updatedRow) {
+        setError('Услуга не найдена или у вас нет прав на её изменение.');
+        return;
+      }
+
       setServices((prev) =>
-        prev.map((item) =>
-          item.id === serviceId
-            ? { ...item, price: check.parsedPrice, duration_minutes: check.parsedDuration }
-            : item
-        )
+        prev.map((item) => (item.id === serviceId ? updatedRow : item))
       );
       setEditingId(null);
       setNotice('Цена и время выполнения обновлены.');
@@ -260,6 +246,8 @@ export default function MasterServices({ master }) {
    *
    * @param {Object} service
    */
+   // Проверяем записи в bookings по service_id и текущему мастеру
+
   const handleDeleteService = async (service) => {
     setError(null);
     setNotice(null);
@@ -270,7 +258,8 @@ export default function MasterServices({ master }) {
       const { count, error: countError } = await supabase
         .from('bookings')
         .select('id', { count: 'exact', head: true })
-        .eq('service_id', service.id);
+        .eq('service_id', service.id)
+        .eq('master_id', master.id);
 
       if (countError) throw countError;
 

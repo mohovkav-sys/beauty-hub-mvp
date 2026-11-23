@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
+import './Auth.css';
 
 /**
  * Компонент авторизации/регистрации для «Beauty Hub».
@@ -154,7 +155,7 @@ export default function Auth({ onAuthSuccess }) {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto bg-white text-slate-900 p-6 sm:p-8 rounded-2xl shadow-xl border border-slate-200 text-left">
+    <div className="auth-card">
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-slate-900">
           Вход в Beauty Hub
@@ -192,10 +193,10 @@ export default function Auth({ onAuthSuccess }) {
               setRole(e.target.value);
               setError(null);
             }}
-            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition"
+            className="auth-field-control"
           >
             <option value="client">Клиент (вход или быстрая регистрация)</option>
-            <option value="master">Мастер (вход по базе)</option>
+            <option value="master">Мастер</option>
           </select>
         </div>
 
@@ -207,10 +208,8 @@ export default function Auth({ onAuthSuccess }) {
           >
             Номер телефона
           </label>
-          <div className="flex items-center rounded-xl border border-slate-300 bg-slate-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-rose-500 focus-within:border-rose-500 transition overflow-hidden">
-            <span className="px-3.5 py-2.5 bg-slate-200 text-slate-900 font-bold text-sm border-r border-slate-300 select-none">
-              +7
-            </span>
+          <div className="auth-phone-group">
+            <span className="auth-phone-prefix">+7</span>
             <input
               id="auth-phone"
               type="tel"
@@ -223,7 +222,7 @@ export default function Auth({ onAuthSuccess }) {
                 const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
                 setPhoneDigits(digits);
               }}
-              className="w-full px-3.5 py-2.5 bg-transparent text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none"
+              className="auth-phone-input"
             />
           </div>
           <p className="text-xs text-slate-500 mt-1.5">
@@ -247,7 +246,7 @@ export default function Auth({ onAuthSuccess }) {
               placeholder="Анна Смирнова"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition"
+              className="auth-field-control"
             />
           </div>
         )}
@@ -256,7 +255,7 @@ export default function Auth({ onAuthSuccess }) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full mt-2 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-semibold text-sm py-3 px-4 rounded-xl shadow-md transition disabled:opacity-50 cursor-pointer"
+          className="auth-submit-btn"
         >
           {loading ? 'Проверяем...' : 'Продолжить'}
         </button>

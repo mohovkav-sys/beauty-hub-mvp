@@ -1,0 +1,202 @@
+:root {
+    --dash-bg: #f8fafc;
+    --dash-card-bg: #ffffff;
+    --dash-card-border: #e2e8f0;
+    --dash-card-radius: 16px;
+    --dash-card-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+    --dash-card-hover-border: #94a3b8;
+    --dash-card-hover-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+  
+    --dash-text-primary: #0f172a;
+    --dash-text-secondary: #475569;
+    --dash-icon-color: #1e293b;
+  
+    /* Цвета по разделам (легко менять в CSS) */
+    --tile-price-accent: #0d9488;
+    --tile-price-icon-bg: #f0fdfa;
+    --tile-price-icon-color: #0f766e;
+  
+    --tile-calendar-accent: #2563eb;
+    --tile-calendar-icon-bg: #eff6ff;
+    --tile-calendar-icon-color: #1d4ed8;
+  
+    --tile-bookings-accent: #9333ea;
+    --tile-bookings-icon-bg: #faf5ff;
+    --tile-bookings-icon-color: #7e22ce;
+  
+    --tile-report-accent: #64748b;
+    --tile-report-icon-bg: #f1f5f9;
+    --tile-report-icon-color: #475569;
+    --tile-report-badge-bg: #f1f5f9;
+    --tile-report-badge-text: #475569;
+  }
+  
+  .dashboard-home {
+    min-height: auto;
+    background-color: transparent;
+    padding: 12px 16px 24px;
+  }
+  
+  .dashboard-home__header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  
+  .dashboard-home__title {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--dash-text-primary);
+  }
+  
+  .dashboard-home__subtitle {
+    margin: 6px 0 0;
+    font-size: 0.9rem;
+    color: var(--dash-text-secondary);
+  }
+  
+  /* 4 квадратных блока строго по центру (2x2) */
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(136px, 190px));
+    gap: 20px;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .dashboard-tile {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    background-color: var(--dash-card-bg);
+    border: 1.5px solid var(--dash-card-border);
+    border-radius: var(--dash-card-radius);
+    box-shadow: var(--dash-card-shadow);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px;
+    cursor: pointer;
+    color: var(--dash-text-primary);
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+  }
+  
+  .dashboard-tile:hover {
+    transform: translateY(-2px);
+    border-color: var(--tile-accent, var(--dash-card-hover-border));
+    box-shadow: var(--dash-card-hover-shadow);
+  }
+  
+  .dashboard-tile:focus-visible {
+    outline: 2px solid var(--tile-accent, #0f172a);
+    outline-offset: 2px;
+  }
+  
+  .dashboard-tile__icon-box {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background-color: var(--tile-icon-bg, var(--tile-report-icon-bg));
+    color: var(--tile-icon-color, var(--tile-report-icon-color));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .dashboard-tile__icon {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .dashboard-tile__label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--dash-text-primary);
+    line-height: 1.25;
+  }
+  
+  .dashboard-tile__badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background-color: var(--tile-report-badge-bg);
+    color: var(--tile-report-badge-text);
+  }
+  
+  /* Модификаторы разделов */
+  .dashboard-tile--price {
+    --tile-accent: var(--tile-price-accent);
+    --tile-icon-bg: var(--tile-price-icon-bg);
+    --tile-icon-color: var(--tile-price-icon-color);
+  }
+  
+  .dashboard-tile--calendar {
+    --tile-accent: var(--tile-calendar-accent);
+    --tile-icon-bg: var(--tile-calendar-icon-bg);
+    --tile-icon-color: var(--tile-calendar-icon-color);
+  }
+  
+  .dashboard-tile--bookings {
+    --tile-accent: var(--tile-bookings-accent);
+    --tile-icon-bg: var(--tile-bookings-icon-bg);
+    --tile-icon-color: var(--tile-bookings-icon-color);
+  }
+  
+  .dashboard-tile--report {
+    --tile-accent: var(--tile-report-accent);
+    --tile-icon-bg: var(--tile-report-icon-bg);
+    --tile-icon-color: var(--tile-report-icon-color);
+    opacity: 0.92;
+  }
+  
+  /* Заглушка для еще не функциональной страницы «Отчет» */
+  .report-placeholder {
+    max-width: 520px;
+    width: 100%;
+    background: var(--dash-card-bg);
+    border: 1px solid var(--dash-card-border);
+    border-radius: var(--dash-card-radius);
+    padding: 24px;
+    text-align: center;
+    box-shadow: var(--dash-card-shadow);
+  }
+  
+  .report-placeholder__title {
+    margin: 12px 0 6px;
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+  
+  .report-placeholder__desc {
+    margin: 0 0 18px;
+    font-size: 0.9rem;
+    color: var(--dash-text-secondary);
+  }
+  
+  .report-placeholder__back-btn {
+    padding: 8px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--dash-card-border);
+    background: var(--dash-card-bg);
+    color: var(--dash-text-primary);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  
+  @media (max-width: 420px) {
+    .dashboard-grid {
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
+      gap: 14px;
+    }
+  
+    .dashboard-tile__icon-box {
+      width: 48px;
+      height: 48px;
+    }
+  }

@@ -40,8 +40,18 @@ function buildIsoFromLocalDateAndTime(dateKey, hhmm) {
   return dt.toISOString();
 }
 
+function resolveItemDurationMinutes(item) {
+  const customDur = Number(item?.duration_minutes);
+  if (Number.isFinite(customDur) && customDur > 0) return customDur;
+
+  const serviceDur = Number(item?.services?.duration_minutes);
+  if (Number.isFinite(serviceDur) && serviceDur > 0) return serviceDur;
+
+  return 60;
+}
+
 /**
- * Модальное окно / панель изменения времени (slot_time) и длительности записи.
+ * Модальное окно изменения времени (slot_time) и индивидуальной длительности (duration_minutes) записи.
  * Проверяет пересечение с другими активными записями мастера и границы смены в `schedule`.
  */
 export default function EditBookingModal({
@@ -55,13 +65,10 @@ export default function EditBookingModal({
     return Number.isNaN(d.getTime()) ? new Date() : d;
   }, [booking]);
 
-  const initialDuration = useMemo(() => {
-    const raw =
-      Number(booking?.duration_minutes) ||
-      Number(booking?.services?.duration_minutes) ||
-      60;
-    return raw > 0 ? raw : 60;
-  }, [booking]);
+  const initialDuration = useMemo(
+    () => resolveItemDurationMinutes(booking),
+    [booking]
+  );
 
   const [dateKey, setDateKey] = useState(() => formatLocalDateKey(initialDate));
   const [timeHHMM, setTimeHHMM] = useState(() => formatLocalHHMM(initialDate));
@@ -112,7 +119,6 @@ export default function EditBookingModal({
         if (!active) return;
         setScheduleRow(schedData || null);
 
-        // Оставляем записи, попадающие на выбранный локальный день
         const sameDay = (bookData || []).filter((item) => {
           if (!item.slot_time) return false;
           const dt = new Date(item.slot_time);
@@ -152,7 +158,6 @@ export default function EditBookingModal({
 
     const endMins = startMins + parsedDuration;
 
-    // Проверка рабочих часов мастера, если день задан в schedule
     if (scheduleRow) {
       if (!scheduleRow.is_available) {
         setError('Выбранный день отмечен у мастера как выходной.');
@@ -170,14 +175,11 @@ export default function EditBookingModal({
       }
     }
 
-    // Проверка пересечения с другими активными записями мастера
     const conflicting = otherBookings.find((item) => {
       const dt = new Date(item.slot_time);
+      if (Number.isNaN(dt.getTime())) return false;
       const bStart = dt.getHours() * 60 + dt.getMinutes();
-      const bDur =
-        Number(item.duration_minutes) ||
-        Number(item.services?.duration_minutes) ||
-        60;
+      const bDur = resolveItemDurationMinutes(item);
       const bEnd = bStart + bDur;
       return startMins < bEnd && endMins > bStart;
     });
@@ -185,10 +187,7 @@ export default function EditBookingModal({
     if (conflicting) {
       const cStart = new Date(conflicting.slot_time);
       const cStartMins = cStart.getHours() * 60 + cStart.getMinutes();
-      const cDur =
-        Number(conflicting.duration_minutes) ||
-        Number(conflicting.services?.duration_minutes) ||
-        60;
+      const cDur = resolveItemDurationMinutes(conflicting);
       setError(
         `Время пересекается с другой записью (${formatMinutesToHHMM(cStartMins)}–${formatMinutesToHHMM(cStartMins + cDur)}).`
       );
@@ -203,8 +202,7 @@ export default function EditBookingModal({
 
     setSaving(true);
     try {
-      // Пробуем обновить slot_time и duration_minutes (если колонка есть в bookings)
-      let updatePayload = {
+      const updatePayload = {
         slot_time: nextIso,
         duration_minutes: parsedDuration,
       };
@@ -216,7 +214,6 @@ export default function EditBookingModal({
         .select('id, slot_time, status, duration_minutes')
         .single();
 
-      // Если в таблице bookings пока нет колонки duration_minutes — обновляем хотя бы slot_time
       if (updateError && /duration_minutes/i.test(updateError.message || '')) {
         const fallback = await supabase
           .from('bookings')
@@ -250,10 +247,17 @@ export default function EditBookingModal({
 
   const startMinsPreview = parseTimeToMinutes(timeHHMM);
   const durPreview = Number(durationMinutes);
+  const validDurPreview = Number.isFinite(durPreview) && durPreview > 0;
   const endPreviewStr =
-    startMinsPreview !== null && Number.isFinite(durPreview) && durPreview > 0
+    startMinsPreview !== null && validDurPreview
       ? formatMinutesToHHMM(startMinsPreview + durPreview)
       : '—';
+
+  const baseServiceDuration = Number(booking.services?.duration_minutes) || 0;
+  const freedMinutesPreview =
+    baseServiceDuration > 0 && validDurPreview && durPreview < baseServiceDuration
+      ? baseServiceDuration - durPreview
+      : 0;
 
   return (
     <div
@@ -338,9 +342,19 @@ export default function EditBookingModal({
             </div>
           </div>
 
-          <p className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-            Итоговый интервал: <strong className="text-slate-900">{timeHHMM || '—'} — {endPreviewStr}</strong>
-          </p>
+          <div className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 space-y-1">
+            <div>
+              Итоговый интервал:{' '}
+              <strong className="text-slate-900">
+                {timeHHMM || '—'} — {endPreviewStr}
+              </strong>
+            </div>
+            {freedMinutesPreview > 0 && (
+              <div className="text-emerald-700 font-semibold">
+                Освободится {freedMinutesPreview} мин относительно базовой услуги ({baseServiceDuration} мин) — слоты станут доступны.
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center justify-end gap-2 pt-2">
             <button

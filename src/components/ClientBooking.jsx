@@ -21,10 +21,10 @@ const ONBOARDING_STEPS = [
  * @returns {string} Строка даты вида '2026-11-20'
  */
 function formatLocalDateKey(dateObj) {
-  const year = dateObj.getFullYear(); // Извлекаем 4-значный год
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0'); // Месяцы в JS идут с 0, дополняем нулём слева
-  const day = String(dateObj.getDate()).padStart(2, '0'); // День месяца, дополняем нулём слева
-  return `${year}-${month}-${day}`; // Возвращаем единый формат ключа
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -34,11 +34,11 @@ function formatLocalDateKey(dateObj) {
  * @returns {string} Дата в формате 'ДД.ММ.ГГГГ'
  */
 function formatRussianDate(dateKey) {
-  if (!dateKey || typeof dateKey !== 'string') return ''; // Защита от пустых и нестроковых значений
-  const parts = dateKey.split('-'); // Разбиваем дату по дефису на [год, месяц, день]
-  if (parts.length !== 3) return dateKey; // Если формат нестандартный, возвращаем как есть
-  const [year, month, day] = parts; // Деструктурируем части даты
-  return `${day}.${month}.${year}`; // Собираем строку строго в порядке день.месяц.год
+  if (!dateKey || typeof dateKey !== 'string') return '';
+  const parts = dateKey.split('-');
+  if (parts.length !== 3) return dateKey;
+  const [year, month, day] = parts;
+  return `${day}.${month}.${year}`;
 }
 
 /**
@@ -49,13 +49,13 @@ function formatRussianDate(dateKey) {
  * @returns {number|null} Количество минут от полуночи или null при некорректной строке
  */
 function parseTimeToMinutes(timeStr) {
-  if (!timeStr || typeof timeStr !== 'string') return null; // Проверяем наличие корректной строки
-  const parts = timeStr.split(':'); // Делим время по двоеточию
-  if (parts.length < 2) return null; // Нужно минимум 2 компонента: часы и минуты
-  const hours = Number(parts[0]); // Преобразуем часы в число
-  const minutes = Number(parts[1]); // Преобразуем минуты в число
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null; // Отсекаем некорректные числа
-  return hours * 60 + minutes; // Считаем общее число минут от начала дня
+  if (!timeStr || typeof timeStr !== 'string') return null;
+  const parts = timeStr.split(':');
+  if (parts.length < 2) return null;
+  const hours = Number(parts[0]);
+  const minutes = Number(parts[1]);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  return hours * 60 + minutes;
 }
 
 /**
@@ -65,10 +65,10 @@ function parseTimeToMinutes(timeStr) {
  * @returns {string} Строка времени вида '14:30'
  */
 function formatMinutesToHHMM(totalMinutes) {
-  const clamped = Math.max(0, Math.min(24 * 60 - 1, totalMinutes)); // Ограничиваем диапазон одними сутками (0..1439)
-  const hours = String(Math.floor(clamped / 60)).padStart(2, '0'); // Выделяем целые часы
-  const minutes = String(clamped % 60).padStart(2, '0'); // Выделяем остаток минут
-  return `${hours}:${minutes}`; // Формируем строку 'HH:MM'
+  const clamped = Math.max(0, Math.min(24 * 60 - 1, totalMinutes));
+  const hours = String(Math.floor(clamped / 60)).padStart(2, '0');
+  const minutes = String(clamped % 60).padStart(2, '0');
+  return `${hours}:${minutes}`;
 }
 
 /**
@@ -80,15 +80,37 @@ function formatMinutesToHHMM(totalMinutes) {
  * @returns {string|null} Валидная ISO-строка или null при ошибке разбора
  */
 function buildSlotIsoFromLocalDateAndTime(dateKey, hhmm) {
-  if (!dateKey || !hhmm) return null; // Проверяем, что переданы оба параметра
-  const [year, month, day] = dateKey.split('-').map(Number); // Разбираем дату в числа
-  const [hours, minutes] = hhmm.split(':').map(Number); // Разбираем время в числа
+  if (!dateKey || !hhmm) return null;
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const [hours, minutes] = hhmm.split(':').map(Number);
   if ([year, month, day, hours, minutes].some((val) => Number.isNaN(val))) {
-    return null; // Если хотя бы одно значение не число — прерываем
+    return null;
   }
-  const localDate = new Date(year, month - 1, day, hours, minutes, 0, 0); // Создаём объект Date в локальном часовом поясе
-  if (Number.isNaN(localDate.getTime())) return null; // Проверяем валидность собранной даты
-  return localDate.toISOString(); // Возвращаем UTC ISO-строку для сохранения в PostgreSQL
+  const localDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  if (Number.isNaN(localDate.getTime())) return null;
+  return localDate.toISOString();
+}
+
+/**
+ * Определяет фактическую длительность записи в минутах с приоритетом
+ * индивидуальной длительности самой записи (`booking.duration_minutes`),
+ * затем длительности услуги (`booking.services.duration_minutes`), иначе 60 мин.
+ *
+ * @param {Object} booking
+ * @returns {number}
+ */
+function resolveBookingDurationMinutes(booking) {
+  const rawCustomDuration = Number(booking?.duration_minutes);
+  if (Number.isFinite(rawCustomDuration) && rawCustomDuration > 0) {
+    return rawCustomDuration;
+  }
+
+  const rawServiceDuration = Number(booking?.services?.duration_minutes);
+  if (Number.isFinite(rawServiceDuration) && rawServiceDuration > 0) {
+    return rawServiceDuration;
+  }
+
+  return 60;
 }
 
 /**
@@ -99,52 +121,54 @@ function buildSlotIsoFromLocalDateAndTime(dateKey, hhmm) {
  *
  * @param {Object} props - Свойства компонента
  * @param {Object} props.client - Профиль авторизованного клиента из таблицы `users`
+ * @param {Function} [props.onBookingCreated] - Колбэк после успешного создания записи
+ * @param {number} [props.refreshKey=0] - Счётчик для принудительного обновления доступности
  */
-export default function ClientBooking({ client, onBookingCreated }) {
+export default function ClientBooking({ client, onBookingCreated, refreshKey = 0 }) {
   // Номер активного шага онбординга (1 — Мастер, 2 — Услуга, 3 — Дата и время)
   const [currentStep, setCurrentStep] = useState(1);
 
   // Списки данных, загружаемые из Supabase
-  const [masters, setMasters] = useState([]); // Все мастера (role = 'master')
-  const [masterServices, setMasterServices] = useState([]); // Услуги выбранного мастера
-  const [masterScheduleRows, setMasterScheduleRows] = useState([]); // Рабочие дни выбранного мастера
-  const [masterBusyIntervalsByDate, setMasterBusyIntervalsByDate] = useState({}); // Карта занятых интервалов по датам
+  const [masters, setMasters] = useState([]);
+  const [masterServices, setMasterServices] = useState([]);
+  const [masterScheduleRows, setMasterScheduleRows] = useState([]);
+  const [masterBusyIntervalsByDate, setMasterBusyIntervalsByDate] = useState({});
 
   // Состояние выбранных клиентом параметров записи
-  const [selectedMasterId, setSelectedMasterId] = useState(''); // ID выбранного мастера
-  const [selectedServiceId, setSelectedServiceId] = useState(''); // ID выбранной услуги
-  const [selectedDateKey, setSelectedDateKey] = useState(''); // Выбранная дата ('YYYY-MM-DD')
-  const [selectedSlotHHMM, setSelectedSlotHHMM] = useState(''); // Выбранное время начала ('HH:MM')
+  const [selectedMasterId, setSelectedMasterId] = useState('');
+  const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [selectedDateKey, setSelectedDateKey] = useState('');
+  const [selectedSlotHHMM, setSelectedSlotHHMM] = useState('');
 
   // Флаги загрузки, отправки и сообщения пользователю
-  const [loadingMasters, setLoadingMasters] = useState(true); // Индикатор загрузки мастеров
-  const [loadingServices, setLoadingServices] = useState(false); // Индикатор загрузки услуг
-  const [loadingAvailability, setLoadingAvailability] = useState(false); // Индикатор загрузки расписания и броней
-  const [submitting, setSubmitting] = useState(false); // Блокировка кнопки во время сохранения записи
-  const [error, setError] = useState(null); // Текст ошибки валидации или сетевого запроса
-  const [notice, setNotice] = useState(null); // Сообщение об успешном создании записи
+  const [loadingMasters, setLoadingMasters] = useState(true);
+  const [loadingServices, setLoadingServices] = useState(false);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(null);
 
   /**
    * Загружает список всех специалистов с ролью 'master' из таблицы `users` для Шага 1.
    */
   const fetchMasters = useCallback(async () => {
-    setLoadingMasters(true); // Включаем индикатор загрузки
-    setError(null); // Сбрасываем старые ошибки
+    setLoadingMasters(true);
+    setError(null);
 
     try {
       const { data, error: mastersError } = await supabase
-        .from('users') // Обращаемся к таблице пользователей
-        .select('id, full_name, phone, role') // Запрашиваем только нужные поля
-        .eq('role', 'master') // Фильтруем только мастеров
-        .order('full_name', { ascending: true }); // Сортируем по имени по алфавиту
+        .from('users')
+        .select('id, full_name, phone, role')
+        .eq('role', 'master')
+        .order('full_name', { ascending: true });
 
-      if (mastersError) throw mastersError; // Передаём ошибку БД в блок catch
-      setMasters(data || []); // Сохраняем список мастеров в состояние
+      if (mastersError) throw mastersError;
+      setMasters(data || []);
     } catch (err) {
-      console.error('Ошибка загрузки списка мастеров:', err.message); // Логируем детали в консоль
-      setError('Не удалось загрузить список мастеров. Проверьте подключение.'); // Показываем понятную ошибку в UI
+      console.error('Ошибка загрузки списка мастеров:', err.message);
+      setError('Не удалось загрузить список мастеров. Проверьте подключение.');
     } finally {
-      setLoadingMasters(false); // Выключаем индикатор загрузки
+      setLoadingMasters(false);
     }
   }, []);
 
@@ -160,30 +184,30 @@ export default function ClientBooking({ client, onBookingCreated }) {
    */
   const fetchServicesForMaster = useCallback(async (masterId) => {
     if (!masterId) {
-      setMasterServices([]); // Если мастер не выбран — очищаем список услуг
+      setMasterServices([]);
       return;
     }
 
-    setLoadingServices(true); // Показываем индикатор загрузки услуг
-    setError(null); // Очищаем ошибки
+    setLoadingServices(true);
+    setError(null);
 
     try {
       const { data, error: servicesError } = await supabase
-        .from('services') // Обращаемся к таблице услуг
-        .select('*') // Получаем поля услуги (id, title, price, duration_minutes и др.)
-        .eq('master_id', masterId) // Выбираем услуги только выбранного мастера
-        .order('title', { ascending: true }); // Сортируем услуги по названию
+        .from('services')
+        .select('*')
+        .eq('master_id', masterId)
+        .order('title', { ascending: true });
 
-      if (servicesError) throw servicesError; // Пробрасываем ошибку запроса
+      if (servicesError) throw servicesError;
 
       // Отфильтровываем скрытые услуги, если в схеме таблицы используется флаг is_active
       const visibleServices = (data || []).filter((item) => item.is_active !== false);
-      setMasterServices(visibleServices); // Сохраняем доступные услуги мастера
+      setMasterServices(visibleServices);
     } catch (err) {
       console.error('Ошибка загрузки услуг мастера:', err.message);
       setError('Не удалось загрузить услуги выбранного мастера.');
     } finally {
-      setLoadingServices(false); // Завершаем загрузку
+      setLoadingServices(false);
     }
   }, []);
 
@@ -198,7 +222,7 @@ export default function ClientBooking({ client, onBookingCreated }) {
 
   /**
    * Загружает рабочие смены мастера из `schedule` и активные записи из `bookings` для Шага 3,
-   * формируя карту занятых временных интервалов по дням.
+   * формируя карту занятых временных интервалов по дням с учётом индивидуальной длительности.
    *
    * @param {string} masterId - UUID выбранного мастера
    */
@@ -209,16 +233,15 @@ export default function ClientBooking({ client, onBookingCreated }) {
       return;
     }
 
-    setLoadingAvailability(true); // Включаем индикатор загрузки расписания
+    setLoadingAvailability(true);
     setError(null);
 
-    const now = new Date(); // Текущие дата и время
-    const todayKey = formatLocalDateKey(now); // Сегодняшний ключ 'YYYY-MM-DD', чтобы не показывать прошедшие дни
-    const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1); // Запас в 1 день для учёта часовых поясов
-    const fromIso = `${formatLocalDateKey(yesterday)}T00:00:00.000Z`; // Нижняя граница выборки броней
+    const now = new Date();
+    const todayKey = formatLocalDateKey(now);
+    const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const fromIso = `${formatLocalDateKey(yesterday)}T00:00:00.000Z`;
 
     try {
-      // Параллельно запрашиваем рабочие дни из `schedule` и неотменённые записи из `bookings`
       const [
         { data: scheduleRows, error: scheduleError },
         { data: bookingRows, error: bookingsError },
@@ -227,102 +250,92 @@ export default function ClientBooking({ client, onBookingCreated }) {
           .from('schedule')
           .select('id, master_id, date, start_time, end_time, is_available')
           .eq('master_id', masterId)
-          .eq('is_available', true) // Берём только открытые для записи дни
-          .gte('date', todayKey) // Только сегодняшние и будущие даты
-          .order('date', { ascending: true }), // Сортируем даты по возрастанию
+          .eq('is_available', true)
+          .gte('date', todayKey)
+          .order('date', { ascending: true }),
         supabase
           .from('bookings')
-          .select('id, master_id, slot_time, status, services(duration_minutes)')
+          .select('id, master_id, slot_time, status, duration_minutes, services(duration_minutes)')
           .eq('master_id', masterId)
-          .neq('status', 'cancelled') // Отменённые записи не занимают время мастера
+          .neq('status', 'cancelled')
           .gte('slot_time', fromIso),
       ]);
 
       if (scheduleError) throw scheduleError;
       if (bookingsError) throw bookingsError;
 
-      setMasterScheduleRows(scheduleRows || []); // Сохраняем рабочие дни мастера
+      setMasterScheduleRows(scheduleRows || []);
 
       // Группируем занятые интервалы [startMins, endMins] по ключу локальной даты
       const busyMap = {};
       (bookingRows || []).forEach((booking) => {
-        if (!booking.slot_time) return; // Пропускаем некорректные записи без времени
-        const slotDate = new Date(booking.slot_time); // Переводим UTC timestamp в локальное время браузера
+        if (!booking.slot_time) return;
+        const slotDate = new Date(booking.slot_time);
         if (Number.isNaN(slotDate.getTime())) return;
 
-        const dateKey = formatLocalDateKey(slotDate); // Получаем локальный день записи
-        const startMins = slotDate.getHours() * 60 + slotDate.getMinutes(); // Начало занятого слота в минутах
-        const rawDuration = Number(booking.services?.duration_minutes); // Длительность забронированной услуги
-        const duration =
-          Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : 60; // По умолчанию 60 минут
-        const endMins = startMins + duration; // Конец занятого интервала в минутах
+        const dateKey = formatLocalDateKey(slotDate);
+        const startMins = slotDate.getHours() * 60 + slotDate.getMinutes();
+        const duration = resolveBookingDurationMinutes(booking);
+        const endMins = startMins + duration;
 
         if (!busyMap[dateKey]) {
-          busyMap[dateKey] = []; // Инициализируем массив занятых интервалов на эту дату
+          busyMap[dateKey] = [];
         }
-        busyMap[dateKey].push({ startMins, endMins }); // Добавляем занятый отрезок
+        busyMap[dateKey].push({ startMins, endMins });
       });
 
-      setMasterBusyIntervalsByDate(busyMap); // Сохраняем карту занятости
+      setMasterBusyIntervalsByDate(busyMap);
     } catch (err) {
       console.error('Ошибка загрузки расписания мастера:', err.message);
       setError('Не удалось загрузить рабочие дни и расписание мастера.');
     } finally {
-      setLoadingAvailability(false); // Выключаем индикатор загрузки
+      setLoadingAvailability(false);
     }
   }, []);
 
-  // Загружаем актуальное расписание и занятые слоты при переходе на Шаг 3
+  // Загружаем актуальное расписание и занятые слоты при переходе на Шаг 3 или изменении refreshKey
   useEffect(() => {
     if (selectedMasterId && currentStep === 3) {
       fetchMasterAvailability(selectedMasterId);
     }
-  }, [selectedMasterId, currentStep, fetchMasterAvailability]);
+  }, [selectedMasterId, currentStep, refreshKey, fetchMasterAvailability]);
 
-  // Находим полный объект выбранного мастера по его ID
   const selectedMaster = useMemo(
     () => masters.find((m) => m.id === selectedMasterId) || null,
     [masters, selectedMasterId]
   );
 
-  // Находим полный объект выбранной услуги по её ID
   const selectedService = useMemo(
     () => masterServices.find((s) => s.id === selectedServiceId) || null,
     [masterServices, selectedServiceId]
   );
 
-  // Вычисляем длительность выбранной услуги в минутах (безопасное значение по умолчанию — 60 мин)
   const serviceDurationMinutes = useMemo(() => {
     const raw = Number(selectedService?.duration_minutes);
     return Number.isFinite(raw) && raw > 0 ? raw : 60;
   }, [selectedService]);
 
-  // Находим строку расписания (`start_time`, `end_time`) для выбранной клиентом даты
   const selectedScheduleRow = useMemo(
     () => masterScheduleRows.find((row) => row.date === selectedDateKey) || null,
     [masterScheduleRows, selectedDateKey]
   );
 
   /**
-   * Рассчитывает список свободных слотов начала записи ('HH:MM') на выбранную дату:
-   * 1) идёт по смене мастера с шагом SLOT_STEP_MINUTES;
-   * 2) проверяет, что процедура целиком помещается до конца смены;
-   * 3) исключает прошедшее время для сегодняшней даты;
-   * 4) исключает слоты, пересекающиеся с уже занятыми интервалами.
+   * Рассчитывает список свободных слотов начала записи ('HH:MM') на выбранную дату.
    */
   const availableTimeSlots = useMemo(() => {
-    if (!selectedScheduleRow || !selectedService) return []; // Без выбранной даты и услуги слотов нет
+    if (!selectedScheduleRow || !selectedService) return [];
 
-    const shiftStart = parseTimeToMinutes(selectedScheduleRow.start_time); // Начало смены в минутах
-    const shiftEnd = parseTimeToMinutes(selectedScheduleRow.end_time); // Конец смены в минутах
+    const shiftStart = parseTimeToMinutes(selectedScheduleRow.start_time);
+    const shiftEnd = parseTimeToMinutes(selectedScheduleRow.end_time);
     if (shiftStart === null || shiftEnd === null || shiftEnd <= shiftStart) {
-      return []; // Некорректный интервал смены
+      return [];
     }
 
-    const busyIntervals = masterBusyIntervalsByDate[selectedDateKey] || []; // Занятые интервалы на выбранный день
+    const busyIntervals = masterBusyIntervalsByDate[selectedDateKey] || [];
     const now = new Date();
-    const isToday = selectedDateKey === formatLocalDateKey(now); // Проверяем, выбран ли сегодняшний день
-    const currentMinutesNow = now.getHours() * 60 + now.getMinutes(); // Текущее время в минутах
+    const isToday = selectedDateKey === formatLocalDateKey(now);
+    const currentMinutesNow = now.getHours() * 60 + now.getMinutes();
 
     const slots = [];
     for (
@@ -330,20 +343,18 @@ export default function ClientBooking({ client, onBookingCreated }) {
       candidateStart + serviceDurationMinutes <= shiftEnd;
       candidateStart += SLOT_STEP_MINUTES
     ) {
-      const candidateEnd = candidateStart + serviceDurationMinutes; // Ожидаемое время окончания услуги
+      const candidateEnd = candidateStart + serviceDurationMinutes;
 
-      // Не предлагаем слоты, которые уже начались или прошли сегодня
       if (isToday && candidateStart <= currentMinutesNow) {
         continue;
       }
 
-      // Проверяем пересечение отрезков [candidateStart, candidateEnd) и [busy.startMins, busy.endMins)
       const overlapsBusy = busyIntervals.some(
         (busy) => candidateStart < busy.endMins && candidateEnd > busy.startMins
       );
 
       if (!overlapsBusy) {
-        slots.push(formatMinutesToHHMM(candidateStart)); // Добавляем свободный слот в список
+        slots.push(formatMinutesToHHMM(candidateStart));
       }
     }
 
@@ -356,42 +367,27 @@ export default function ClientBooking({ client, onBookingCreated }) {
     serviceDurationMinutes,
   ]);
 
-  /**
-   * Обработчик выбора мастера на Шаге 1.
-   * При смене мастера сбрасывает зависимые параметры (услугу, дату и слот).
-   *
-   * @param {string} masterId - UUID выбранного мастера
-   */
   const handleSelectMaster = (masterId) => {
     if (masterId !== selectedMasterId) {
-      setSelectedMasterId(masterId); // Запоминаем нового мастера
-      setSelectedServiceId(''); // Сбрасываем выбранную услугу прошлого мастера
-      setSelectedDateKey(''); // Сбрасываем выбранную дату
-      setSelectedSlotHHMM(''); // Сбрасываем выбранное время
+      setSelectedMasterId(masterId);
+      setSelectedServiceId('');
+      setSelectedDateKey('');
+      setSelectedSlotHHMM('');
     }
     setError(null);
     setNotice(null);
   };
 
-  /**
-   * Обработчик выбора услуги на Шаге 2.
-   * При смене услуги сбрасывает дату и время (так как у новой услуги может быть другая длительность).
-   *
-   * @param {string} serviceId - UUID выбранной услуги
-   */
   const handleSelectService = (serviceId) => {
     if (serviceId !== selectedServiceId) {
-      setSelectedServiceId(serviceId); // Запоминаем выбранную услугу
-      setSelectedDateKey(''); // Сбрасываем дату
-      setSelectedSlotHHMM(''); // Сбрасываем слот
+      setSelectedServiceId(serviceId);
+      setSelectedDateKey('');
+      setSelectedSlotHHMM('');
     }
     setError(null);
     setNotice(null);
   };
 
-  /**
-   * Переводит онбординг на следующий шаг после проверки обязательного выбора на текущем шаге.
-   */
   const handleNextStep = () => {
     setError(null);
 
@@ -400,7 +396,7 @@ export default function ClientBooking({ client, onBookingCreated }) {
         setError('Пожалуйста, выберите мастера, чтобы перейти к выбору услуги.');
         return;
       }
-      setCurrentStep(2); // Переходим к выбору услуги
+      setCurrentStep(2);
       return;
     }
 
@@ -409,13 +405,10 @@ export default function ClientBooking({ client, onBookingCreated }) {
         setError('Пожалуйста, выберите услугу, чтобы перейти к выбору даты и времени.');
         return;
       }
-      setCurrentStep(3); // Переходим к выбору даты и слота
+      setCurrentStep(3);
     }
   };
 
-  /**
-   * Возвращает пользователя на один шаг назад без потери ранее выбранного мастера/услуги.
-   */
   const handlePrevStep = () => {
     setError(null);
     setCurrentStep((prev) => Math.max(1, prev - 1));
@@ -423,17 +416,16 @@ export default function ClientBooking({ client, onBookingCreated }) {
 
   /**
    * Финальный обработчик отправки формы на Шаге 3:
-   * проверяет доступность слота прямо перед записью (защита от гонки бронирований)
+   * проверяет доступность слота прямо перед записью с учётом индивидуальной длительности
    * и сохраняет новую запись в таблицу `bookings`.
    *
    * @param {React.FormEvent} e - Событие отправки формы
    */
   const handleConfirmBooking = async (e) => {
-    e.preventDefault(); // Предотвращаем перезагрузку страницы браузером
+    e.preventDefault();
     setError(null);
     setNotice(null);
 
-    // Валидация авторизации и всех обязательных шагов
     if (!client?.id) {
       setError('Не найден профиль клиента. Войдите в личный кабинет заново.');
       return;
@@ -449,16 +441,15 @@ export default function ClientBooking({ client, onBookingCreated }) {
       return;
     }
 
-    setSubmitting(true); // Блокируем кнопку отправки на время запроса
+    setSubmitting(true);
 
     try {
-      // Повторно проверяем актуальные записи мастера на этот день перед вставкой (защита от двойной брони)
       const dayStartIso = buildSlotIsoFromLocalDateAndTime(selectedDateKey, '00:00');
       const dayEndIso = buildSlotIsoFromLocalDateAndTime(selectedDateKey, '23:59');
 
       const { data: freshBookings, error: checkError } = await supabase
         .from('bookings')
-        .select('id, slot_time, status, services(duration_minutes)')
+        .select('id, slot_time, status, duration_minutes, services(duration_minutes)')
         .eq('master_id', selectedMasterId)
         .neq('status', 'cancelled')
         .gte('slot_time', dayStartIso)
@@ -471,8 +462,9 @@ export default function ClientBooking({ client, onBookingCreated }) {
 
       const conflictExists = (freshBookings || []).some((b) => {
         const dt = new Date(b.slot_time);
+        if (Number.isNaN(dt.getTime())) return false;
         const bStart = dt.getHours() * 60 + dt.getMinutes();
-        const bDur = Number(b.services?.duration_minutes) || 60;
+        const bDur = resolveBookingDurationMinutes(b);
         const bEnd = bStart + bDur;
         return desiredStartMins < bEnd && desiredEndMins > bStart;
       });
@@ -480,11 +472,10 @@ export default function ClientBooking({ client, onBookingCreated }) {
       if (conflictExists) {
         setError('Этот слот только что заняли. Пожалуйста, выберите другое время.');
         setSelectedSlotHHMM('');
-        await fetchMasterAvailability(selectedMasterId); // Обновляем сетку свободных слотов
+        await fetchMasterAvailability(selectedMasterId);
         return;
       }
 
-      // Создаём подтверждённую запись в таблице `bookings`
       const { error: insertError } = await supabase.from('bookings').insert([
         {
           client_id: client.id,
@@ -497,14 +488,12 @@ export default function ClientBooking({ client, onBookingCreated }) {
 
       if (insertError) throw insertError;
 
-      // Формируем сообщение об успешной записи с датой строго в формате ДД.ММ.ГГГГ
       setNotice(
         `Запись подтверждена! Мастер: ${selectedMaster?.full_name || 'специалист'}, услуга: «${
           selectedService?.title || ''
         }», дата и время: ${formatRussianDate(selectedDateKey)} в ${selectedSlotHHMM}.`
       );
 
-      // Сбрасываем выбранные слот, дату и услугу, возвращая онбординг на Шаг 1
       setSelectedSlotHHMM('');
       setSelectedDateKey('');
       setSelectedServiceId('');
@@ -516,7 +505,7 @@ export default function ClientBooking({ client, onBookingCreated }) {
       console.error('Ошибка при создании записи:', err.message);
       setError('Не удалось сохранить запись. Попробуйте выбрать другой слот или повторить позже.');
     } finally {
-      setSubmitting(false); // Разблокируем кнопку
+      setSubmitting(false);
     }
   };
 
@@ -526,21 +515,18 @@ export default function ClientBooking({ client, onBookingCreated }) {
       <div className="space-y-4">
         <div>
           <h2 className="text-2xl font-bold text-brand-dark">Онлайн-запись</h2>
-
         </div>
 
         {/* Горизонтальный индикатор 3 шагов (стилизация полностью в ClientBooking.css) */}
         <ol className="booking-steps">
           {ONBOARDING_STEPS.map((step) => {
-            const isActive = step.id === currentStep; // Текущий открытый шаг
-            const isCompleted = step.id < currentStep; // Уже пройденный шаг
-            // Переход по клику разрешён на Шаг 1, на Шаг 2 (если выбран мастер) и на Шаг 3 (если выбрана услуга)
+            const isActive = step.id === currentStep;
+            const isCompleted = step.id < currentStep;
             const canJump =
               step.id === 1 ||
               (step.id === 2 && Boolean(selectedMasterId)) ||
               (step.id === 3 && Boolean(selectedMasterId && selectedServiceId));
 
-            // Определяем модификатор состояния кнопки шага для CSS
             const stateClass = isActive
               ? 'booking-steps__btn--active'
               : isCompleted
@@ -560,12 +546,10 @@ export default function ClientBooking({ client, onBookingCreated }) {
                   }}
                   className={`booking-steps__btn ${stateClass}`}
                 >
-                  {/* Круглый бейдж с номером шага или галочкой завершения */}
                   <span className="booking-steps__badge">
                     {isCompleted ? '✓' : step.id}
                   </span>
 
-                  {/* Текстовая часть шага: заголовок и подзаголовок (используем span внутри button) */}
                   <span className="booking-steps__content">
                     <span className="block booking-steps__title">{step.title}</span>
                     <span className="block booking-steps__subtitle">
@@ -583,7 +567,6 @@ export default function ClientBooking({ client, onBookingCreated }) {
         </ol>
       </div>
 
-      {/* Уведомление об успешном оформлении записи */}
       {notice && (
         <div
           role="status"
@@ -593,7 +576,6 @@ export default function ClientBooking({ client, onBookingCreated }) {
         </div>
       )}
 
-      {/* Сообщение об ошибке валидации или работы с БД */}
       {error && (
         <div
           role="alert"
@@ -643,7 +625,6 @@ export default function ClientBooking({ client, onBookingCreated }) {
             </div>
           )}
 
-          {/* Кнопка перехода на Шаг 2 */}
           <div className="flex justify-end pt-3 border-t border-slate-200">
             <button
               type="button"
@@ -705,7 +686,6 @@ export default function ClientBooking({ client, onBookingCreated }) {
             </div>
           )}
 
-          {/* Кнопки навигации Шага 2 */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200">
             <button
               type="button"
@@ -736,7 +716,6 @@ export default function ClientBooking({ client, onBookingCreated }) {
          ===================================================================== */}
       {currentStep === 3 && (
         <form onSubmit={handleConfirmBooking} className="space-y-5">
-          {/* Сводка выбранных мастера и услуги */}
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 flex flex-wrap gap-x-4 gap-y-1">
             <span>
               Мастер: <strong className="text-ink">{selectedMaster?.full_name}</strong>
@@ -748,9 +727,22 @@ export default function ClientBooking({ client, onBookingCreated }) {
             </span>
           </div>
 
-          <h3 className="text-base font-bold text-ink">
-            Шаг 3 из 3. Выберите дату и время визита
-          </h3>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-base font-bold text-ink">
+              Шаг 3 из 3. Выберите дату и время визита
+            </h3>
+
+            {selectedMasterId && (
+              <button
+                type="button"
+                onClick={() => fetchMasterAvailability(selectedMasterId)}
+                disabled={loadingAvailability}
+                className="px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-60"
+              >
+                {loadingAvailability ? 'Обновляем...' : 'Обновить слоты'}
+              </button>
+            )}
+          </div>
 
           {loadingAvailability ? (
             <p className="text-sm text-muted py-4">
@@ -758,14 +750,13 @@ export default function ClientBooking({ client, onBookingCreated }) {
             </p>
           ) : masterScheduleRows.length === 0 ? (
             <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm">
-              У мастера {selectedMaster?.full_name} пока нет открытых рабочих дней в расписании.
+              У выбранного мастера пока нет открытых рабочих дней в расписании.
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Выбор рабочей даты (строго формат ДД.ММ.ГГГГ) */}
               <div className="space-y-2">
-                <div className="text-xs font-bold uppercase tracking-wide text-muted">
-                  Доступные даты:
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Доступные даты
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {masterScheduleRows.map((row) => {
@@ -782,7 +773,7 @@ export default function ClientBooking({ client, onBookingCreated }) {
                         className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition cursor-pointer ${
                           isDateSelected
                             ? 'bg-emerald-600 text-white border-emerald-700'
-                            : 'bg-white text-ink border-slate-300 hover:border-emerald-500'
+                            : 'bg-white text-slate-800 border-slate-300 hover:border-emerald-500'
                         }`}
                       >
                         {formatRussianDate(row.date)}
@@ -792,17 +783,16 @@ export default function ClientBooking({ client, onBookingCreated }) {
                 </div>
               </div>
 
-              {/* Выбор свободного времени начала на выбранную дату */}
               {selectedDateKey && (
                 <div className="space-y-2 pt-2">
-                  <div className="text-xs font-bold uppercase tracking-wide text-muted">
-                    Свободное время на {formatRussianDate(selectedDateKey)}:
+                  <div className="text-xs font-semibold text-slate-700">
+                    Свободное время на {formatRussianDate(selectedDateKey)} (услуга{' '}
+                    {serviceDurationMinutes} мин):
                   </div>
 
                   {availableTimeSlots.length === 0 ? (
                     <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                      На выбранную дату нет свободных слотов под длительность услуги (
-                      {serviceDurationMinutes} мин). Выберите другую дату.
+                      На выбранную дату нет свободных слотов подходящей длительности. Выберите другую дату или обновите расписание.
                     </p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
@@ -816,10 +806,10 @@ export default function ClientBooking({ client, onBookingCreated }) {
                               setSelectedSlotHHMM(slot);
                               setError(null);
                             }}
-                            className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                            className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition cursor-pointer ${
                               isSlotSelected
-                                ? 'bg-brand-dark text-white border-brand-dark'
-                                : 'bg-white text-ink border-slate-300 hover:border-slate-500'
+                                ? 'bg-brand text-white border-brand'
+                                : 'bg-white text-slate-900 border-slate-300 hover:border-slate-500'
                             }`}
                           >
                             {slot}
@@ -833,8 +823,7 @@ export default function ClientBooking({ client, onBookingCreated }) {
             </div>
           )}
 
-          {/* Нижняя панель Шага 3: возврат назад и подтверждение бронирования */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200">
             <button
               type="button"
               onClick={handlePrevStep}
@@ -849,14 +838,10 @@ export default function ClientBooking({ client, onBookingCreated }) {
               className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition ${
                 submitting || !selectedDateKey || !selectedSlotHHMM
                   ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-sm'
+                  : 'bg-brand hover:bg-brand-hover text-white cursor-pointer shadow-sm'
               }`}
             >
-              {submitting
-                ? 'Сохраняем запись...'
-                : selectedDateKey && selectedSlotHHMM
-                ? `Подтвердить запись (${formatRussianDate(selectedDateKey)}, ${selectedSlotHHMM})`
-                : 'Подтвердить запись'}
+              {submitting ? 'Сохраняем запись...' : 'Подтвердить запись'}
             </button>
           </div>
         </form>

@@ -57,11 +57,11 @@ function getStatusMeta(status) {
 /**
  * Компонент списка записей клиентов для кабинета мастера.
  * Загружает записи из таблицы `bookings` по `master.id`, отображает дату, время,
- * услугу, клиента и позволяет отменить активную запись.
+ * услугу, клиента, индивидуальную длительность и позволяет изменить или отменить запись.
  */
 export default function MasterBookingsList({ master }) {
   const [bookings, setBookings] = useState([]);
-  const [filterMode, setFilterMode] = useState('active'); // 'active' | 'all' | 'cancelled'
+  const [filterMode, setFilterMode] = useState('active'); // 'active' | 'cancelled' | 'all'
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState(null);
   const [editingBooking, setEditingBooking] = useState(null);
@@ -79,7 +79,6 @@ export default function MasterBookingsList({ master }) {
     setError(null);
 
     try {
-      // Пробуем загрузить записи со связями на услугу и профиль клиента
       const { data, error: fetchError } = await supabase
         .from('bookings')
         .select(
@@ -89,6 +88,7 @@ export default function MasterBookingsList({ master }) {
           master_id,
           service_id,
           slot_time,
+          duration_minutes,
           status,
           services (title, price, duration_minutes),
           client:users!bookings_client_id_fkey (full_name, phone)
@@ -102,7 +102,6 @@ export default function MasterBookingsList({ master }) {
         return;
       }
 
-      // Запасной вариант загрузки без join-алиасов, если имена связей в БД отличаются
       const [
         { data: plainBookings, error: plainError },
         { data: usersRows },
@@ -212,7 +211,6 @@ export default function MasterBookingsList({ master }) {
           { id: 'active', label: 'Активные' },
           { id: 'cancelled', label: 'Отменённые' },
           { id: 'all', label: 'Все записи' },
-          
         ].map((tab) => {
           const isActive = filterMode === tab.id;
           return (
@@ -259,30 +257,29 @@ export default function MasterBookingsList({ master }) {
       ) : (
         <div className="space-y-3">
           {filteredBookings.map((booking) => {
-const slotDate = booking.slot_time ? new Date(booking.slot_time) : null;
-const isValidDate = slotDate && !Number.isNaN(slotDate.getTime());
-const dateStr = isValidDate ? formatRussianDateFromObj(slotDate) : '—';
-const timeStr = isValidDate ? formatLocalHHMMFromObj(slotDate) : '—';
+            const slotDate = booking.slot_time ? new Date(booking.slot_time) : null;
+            const isValidDate = slotDate && !Number.isNaN(slotDate.getTime());
+            const dateStr = isValidDate ? formatRussianDateFromObj(slotDate) : '—';
+            const timeStr = isValidDate ? formatLocalHHMMFromObj(slotDate) : '—';
 
-const statusMeta = getStatusMeta(booking.status);
-const isCancellable = booking.status !== 'cancelled';
-const isCancelling = cancellingId === booking.id;
+            const statusMeta = getStatusMeta(booking.status);
+            const isCancellable = booking.status !== 'cancelled';
+            const isCancelling = cancellingId === booking.id;
 
-// --- СЮДА ВСТАВЛЯЕМ РАСЧЁТ ДЛИТЕЛЬНОСТИ И ОСВОБОДИВШИХСЯ МИНУТ ---
-const effectiveDuration =
-  Number(booking.duration_minutes) ||
-  Number(booking.services?.duration_minutes) ||
-  60;
-const baseDuration =
-  Number(booking.services?.duration_minutes) || effectiveDuration;
-const freedMinutes =
-  effectiveDuration < baseDuration ? baseDuration - effectiveDuration : 0;
-// ------------------------------------------------------------------
+            const effectiveDuration =
+              Number(booking.duration_minutes) ||
+              Number(booking.services?.duration_minutes) ||
+              60;
+            const baseDuration =
+              Number(booking.services?.duration_minutes) || effectiveDuration;
+            const freedMinutes =
+              effectiveDuration < baseDuration ? baseDuration - effectiveDuration : 0;
 
-const serviceTitle = booking.services?.title || 'Услуга';
-const servicePrice = booking.services?.price;
-const clientName = booking.client?.full_name || 'Клиент';
-const clientPhone = booking.client?.phone || '';
+            const serviceTitle = booking.services?.title || 'Услуга';
+            const servicePrice = booking.services?.price;
+            const clientName = booking.client?.full_name || 'Клиент';
+            const clientPhone = booking.client?.phone || '';
+
             return (
               <div
                 key={booking.id}
@@ -310,45 +307,49 @@ const clientPhone = booking.client?.phone || '';
                       {clientPhone ? ` (${clientPhone})` : ''}
                     </span>
                     <span>
-    Длительность: <strong className="text-slate-900">{effectiveDuration} мин</strong>
-    {baseDuration !== effectiveDuration ? ` (по прайсу: ${baseDuration} мин)` : ''}
-  </span>
+                      Длительность: <strong className="text-slate-900">{effectiveDuration} мин</strong>
+                      {baseDuration !== effectiveDuration ? ` (по прайсу: ${baseDuration} мин)` : ''}
+                    </span>
                     {typeof servicePrice === 'number' ? (
                       <span>Стоимость: {servicePrice.toLocaleString('ru-RU')} ₽</span>
+                    ) : null}
+                    {freedMinutes > 0 ? (
+                      <span className="text-emerald-700 font-semibold">
+                        Освободилось: {freedMinutes} мин (слот доступен для записи)
+                      </span>
                     ) : null}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                {isCancellable ? (
-  <div className="flex items-center gap-2">
-    <button
-      type="button"
-      onClick={() => setEditingBooking(booking)}
-      className="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold transition cursor-pointer"
-    >
-      Изменить
-    </button>
-    <button
-      type="button"
-      onClick={() => handleCancelBooking(booking)}
-      disabled={isCancelling}
-      className="px-4 py-2 rounded-xl border border-red-200 bg-white hover:bg-red-50 text-red-700 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
-    >
-      {isCancelling ? 'Отменяем...' : 'Отменить запись'}
-    </button>
-  </div>
-) : (
-  <span className="text-xs text-slate-500 italic">Отменена</span>
-)}
+                  {isCancellable ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingBooking(booking)}
+                        className="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold transition cursor-pointer"
+                      >
+                        Изменить
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCancelBooking(booking)}
+                        disabled={isCancelling}
+                        className="px-4 py-2 rounded-xl border border-red-200 bg-white hover:bg-red-50 text-red-700 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+                      >
+                        {isCancelling ? 'Отменяем...' : 'Отменить запись'}
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-500 italic">Отменена</span>
+                  )}
                 </div>
-
-
               </div>
             );
           })}
         </div>
       )}
+
       {editingBooking && (
         <EditBookingModal
           booking={editingBooking}
@@ -359,14 +360,18 @@ const clientPhone = booking.client?.phone || '';
                 item.id === updatedBooking.id ? { ...item, ...updatedBooking } : item
               )
             );
-            setNotice('Запись обновлена.');
+            const baseDur = Number(updatedBooking.services?.duration_minutes) || 0;
+            const newDur = Number(updatedBooking.duration_minutes) || 0;
+            const freed = baseDur > 0 && newDur > 0 && newDur < baseDur ? baseDur - newDur : 0;
+            setNotice(
+              freed > 0
+                ? `Запись обновлена (${newDur} мин). Освободилось ${freed} мин — слоты в это окно доступны.`
+                : 'Запись обновлена.'
+            );
             setEditingBooking(null);
           }}
         />
       )}
     </section>
-    
-
-    
   );
 }

@@ -22,3 +22,16 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Supabase CLI temporary / link metadata
+supabase/.temp/
+
+# Accidental local database dumps and backup archives
+*.sql
+*.dump
+*.backup
+*.bak
+*.7z
+*.zip
+*.tar
+*.tar.gz
+

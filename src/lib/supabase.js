@@ -1,18 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 
-// =========================================================================
-// ИНИЦИАЛИЗАЦИЯ КЛИЕНТА SUPABASE ДЛЯ ПРОЕКТА «BEAUTY HUB»
-// =========================================================================
+// Инициализация клиента Supabase для проекта «Beauty Hub»
+const DEFAULT_SUPABASE_URL = 'https://hwjkdvozvmrdowxcguih.supabase.co'
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_4VYlk8in8G88eTrIYEbcLQ__S8RGmtn'
 
-// Базовый адрес проекта Supabase (очищенный от невидимых символов)
-const SUPABASE_URL = 'https://hwjkdvozvmrdowxcguih.supabase.co'
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY
 
-// Публичный анонимный ключ для безопасного доступа с фронтенда
-const SUPABASE_ANON_KEY = 'sb_publishable_4VYlk8in8G88eTrIYEbcLQ__S8RGmtn'
-
-/**
- * Создаем и экспортируем единый экземпляр клиента Supabase.
- * Он будет использоваться во всем приложении для авторизации,
- * чтения и записи данных в таблицы (users, services, schedule, bookings).
- */
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
